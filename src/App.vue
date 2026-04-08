@@ -1,85 +1,45 @@
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
-  </header>
-
-  <RouterView />
+  <div class="app-layout">
+    <nav class="navbar navbar-expand-lg navbar-dark glass-panel mb-4 mx-3 mt-3 sticky-top">
+      <div class="container-fluid">
+        <RouterLink class="navbar-brand fw-bold text-white shadow-sm" to="/">
+          <i class="bi bi-heptagon-half text-primary me-2"></i> Derek Welding Control
+        </RouterLink>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+          <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+          <ul class="navbar-nav ms-auto gap-2 align-items-center">
+            <li class="nav-item">
+              <RouterLink class="nav-link" to="/">Dashboard</RouterLink>
+            </li>
+            <li class="nav-item">
+              <RouterLink class="btn btn-primary px-3 rounded-pill fw-medium" to="/upload">
+                <i class="bi bi-cloud-arrow-up-fill me-1"></i> Subir Presupuesto (PDF)
+              </RouterLink>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </nav>
+    
+    <main class="container-fluid px-4 pb-5">
+      <RouterView />
+    </main>
+  </div>
 </template>
 
 <style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
+.app-layout {
+  min-height: 100vh;
 }
-
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
-
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
+.nav-link.router-link-active {
+  color: #fff !important;
+  font-weight: 600;
+  border-bottom: 2px solid var(--bs-primary);
 }
 </style>

@@ -1,0 +1,82 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+$body-bg: transparent; // El body principal será el gradient de abajo
+$body-color: #e2e8f0;
+
+$primary: #3b82f6; // Azul vibrante
+$secondary: #8b5cf6; // Morado
+$success: #10b981; // Verde esmeralda
+$info: #0ea5e9;
+$warning: #f59e0b;
+$danger: #ef4444;
+
+$card-bg: rgba(30, 41, 59, 0.7);
+$card-border-color: rgba(255, 255, 255, 0.1);
+$card-border-radius: 1rem;
+
+$modal-content-bg: rgba(30, 41, 59, 0.85);
+$modal-content-border-color: rgba(255, 255, 255, 0.1);
+$input-bg: rgba(0, 0, 0, 0.2);
+$input-color: #fff;
+$input-border-color: rgba(255, 255, 255, 0.1);
+
+@import "bootstrap/scss/bootstrap";
+@import "bootstrap-icons/font/bootstrap-icons.css";
+
+// Utilidad Glassmorphism
+.glass-panel {
+  background: rgba(30, 41, 59, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.glass-panel:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.45);
+}
+
+body {
+    background: linear-gradient(135deg, #0f172a 0%, #170f2b 100%);
+    background-attachment: fixed;
+    min-height: 100vh;
+    font-family: 'Inter', -apple-system, sans-serif;
+    color: #e2e8f0;
+}
+
+// Customizar el form-control base para adaptarlo al modo glass
+.form-control, .form-select {
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-radius: 0.5rem;
+}
+.form-control:focus, .form-select:focus {
+    background-color: rgba(0, 0, 0, 0.5);
+    border-color: $primary;
+    box-shadow: 0 0 0 0.25rem rgba(59, 130, 246, 0.25);
+    color: #fff;
+}
+.form-control::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+// Tablas oscuras sin fondo sólido
+.table {
+  color: $body-color !important;
+  --bs-table-bg: transparent;
+  --bs-table-striped-bg: rgba(255, 255, 255, 0.03);
+  --bs-table-hover-bg: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.table th {
+  background-color: rgba(0, 0, 0, 0.2);
+  border-bottom: 2px solid rgba(255, 255, 255, 0.15);
+  font-weight: 600;
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+}
