@@ -103,6 +103,23 @@ export const useProyectosStore = defineStore('proyectos', {
          this.error = err.response?.data?.detail || 'Base de datos no pudo transaccionar tu avance.';
          throw err;
       }
+    },
+    async descargarReportePdf(proyectoId: number, avanceId: number) {
+      try {
+        const response = await api.get(`/proyectos/${proyectoId}/avances/${avanceId}/descargar-pdf`, {
+          responseType: 'blob'
+        });
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `Avance_Reporte.pdf`);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode?.removeChild(link);
+      } catch (err: any) {
+        this.error = 'Falló la generación del PDF. Verifique que la IA y la Base de datos están conectadas.';
+        throw err;
+      }
     }
   }
 });

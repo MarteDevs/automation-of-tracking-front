@@ -30,6 +30,14 @@ const guardarAvance = async () => {
   await store.agregarAvance(pId, nuevoAvance.value);
   nuevoAvance.value = { semana: nuevoAvance.value.semana + 1, porcentaje_avance: Math.min(100, nuevoAvance.value.porcentaje_avance + 10), observaciones: '', rutas_fotografias: '' };
 };
+
+const descargarPDF = async (avanceId: number) => {
+  const pId = Number(route.params.id);
+  if(!pId || !avanceId) return;
+  
+  // Opcionalmente se puede bloquear la UI, pero como descarga directo, lo hacemos silencioso
+  await store.descargarReportePdf(pId, avanceId);
+};
 </script>
 
 <template>
@@ -130,6 +138,12 @@ const guardarAvance = async () => {
                 <p class="mb-1 mt-2 text-muted small">{{ av.observaciones || "Sin observaciones." }}</p>
                 <div v-if="av.rutas_fotografias" class="mt-2 text-primary small">
                   <i class="bi bi-image"></i> Fotografías Adjuntadas / URL: {{ av.rutas_fotografias }}
+                </div>
+                
+                <div class="mt-3 text-end border-top border-secondary pt-2">
+                  <button @click="descargarPDF(av.id!)" class="btn btn-sm btn-outline-light d-inline-flex align-items-center">
+                    <i class="bi bi-file-earmark-pdf-fill text-danger fs-5 me-2"></i> Generar Reporte PDF
+                  </button>
                 </div>
               </div>
             </div>
