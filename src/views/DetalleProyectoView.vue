@@ -1,18 +1,19 @@
 <script setup lang="ts">
-import { onMounted, ref, computed } from 'vue';
+import { onMounted, ref, computed, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { useProyectosStore } from '@/stores/proyectos';
 
 const route = useRoute();
 const store = useProyectosStore();
 
-// Form para nuevo avance
 const nuevoAvance = ref({
   semana: 1,
   porcentaje_avance: 10,
   observaciones: '',
   rutas_fotografias: '',
-  tipo_periodo: 'SEMANA' as 'SEMANA' | 'DIA'
+  tipo_periodo: 'SEMANA' as 'SEMANA' | 'DIA',
+  fecha_fin: '',
+  dias_trabajados: 0
 });
 
 // Etiqueta dinámica según tipo
@@ -64,6 +65,65 @@ const onFileSelected = (e: Event) => {
 };
 
 const editSemanasVal = ref(1);
+const editUnidadVal = ref('SEMANAS');
+
+const checkValidDateStr = (dateStr: string) => {
+  if (!dateStr) return null;
+  const parts = dateStr.split(/[-/]/);
+  if (parts.length === 3) {
+    const p0 = parts[0] as string;
+    const p1 = parts[1] as string;
+    const p2 = parts[2] as string;
+    let year = Number(p2);
+    let month = Number(p1) - 1;
+    let day = Number(p0);
+    if (p0.length === 4) {
+      year = Number(p0);
+      day = Number(p2);
+    }
+    const d = new Date(year, month, day);
+    if (!isNaN(d.getTime())) return d;
+  }
+  return null;
+}
+
+const toLocalYYYYMMDD = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+}
+
+const computedFechaFinProyecto = computed(() => {
+  const d = checkValidDateStr(store.proyectoActivo?.fecha || '');
+  if (!d) return '---';
+  const offset = editUnidadVal.value === 'DIAS' ? editSemanasVal.value : editSemanasVal.value * 7;
+  d.setDate(d.getDate() + offset);
+  return d.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+});
+
+const computedDiasProyecto = computed(() => {
+   return editUnidadVal.value === 'DIAS' ? editSemanasVal.value : editSemanasVal.value * 7;
+});
+
+const calcularAvanceAutomatico = () => {
+    const d = checkValidDateStr(store.proyectoActivo?.fecha || '');
+    if(!d) return;
+
+    if (nuevoAvance.value.tipo_periodo === 'SEMANA') {
+        const span = nuevoAvance.value.semana * 7;
+        d.setDate(d.getDate() + span);
+        nuevoAvance.value.fecha_fin = toLocalYYYYMMDD(d);
+        nuevoAvance.value.dias_trabajados = 7;
+    } else {
+        d.setDate(d.getDate() + Number(nuevoAvance.value.semana)); 
+        nuevoAvance.value.fecha_fin = toLocalYYYYMMDD(d);
+        nuevoAvance.value.dias_trabajados = 1;
+    }
+}
+
+watch(() => nuevoAvance.value.semana, calcularAvanceAutomatico);
+watch(() => nuevoAvance.value.tipo_periodo, calcularAvanceAutomatico, { immediate: true });
 
 onMounted(async () => {
   const pId = Number(route.params.id);
@@ -71,6 +131,8 @@ onMounted(async () => {
     await store.fetchProyectoActivo(pId);
     if (store.proyectoActivo) {
       editSemanasVal.value = store.proyectoActivo.semanas_estimadas || 1;
+      editUnidadVal.value = store.proyectoActivo.tipo_duracion || 'SEMANAS';
+      calcularAvanceAutomatico();
     }
   }
 });
@@ -109,7 +171,9 @@ const guardarAvance = async () => {
     porcentaje_avance: Math.min(100, nuevoAvance.value.porcentaje_avance + 10),
     observaciones: '',
     rutas_fotografias: '',
-    tipo_periodo: nuevoAvance.value.tipo_periodo // Mantener el tipo elegido
+    tipo_periodo: nuevoAvance.value.tipo_periodo, // Mantener el tipo elegido
+    fecha_fin: '',
+    dias_trabajados: 0
   };
   evidenciaFiles.value = [];
   const inputEl = document.getElementById('fotoInput') as HTMLInputElement;
@@ -119,8 +183,8 @@ const guardarAvance = async () => {
 const guardarSemanasEstimadas = async () => {
   const pId = Number(route.params.id);
   if (pId && editSemanasVal.value >= 1) {
-    await store.actualizarConfiguracion(pId, editSemanasVal.value);
-    showToast(`✔ Plazo guardado: ${editSemanasVal.value} semanas.`, 'success');
+    await store.actualizarConfiguracion(pId, editSemanasVal.value, editUnidadVal.value);
+    showToast(`✔ Configuración guardada correctamente.`, 'success');
   }
 };
 
@@ -367,9 +431,20 @@ const ejecutarEliminacion = async () => {
               <div>
                 <h6 class="mb-1 text-info fw-bold"><i class="bi bi-graph-up-arrow me-1"></i> Configuración de Curva S</h6>
                 <p class="mb-0 small text-muted">Duración programada total para calcular la curva logística matemática y su asimetría.</p>
+                <div class="mt-2 text-muted small">
+                  <i class="bi bi-calendar-check text-info"></i> Inicio: <strong class="text-white">{{ store.proyectoActivo.fecha }}</strong> 
+                  <span class="mx-2">|</span>
+                  Fin Estimado: <strong class="text-white">{{ computedFechaFinProyecto }}</strong>
+                  <span class="mx-2">|</span>
+                  Tot. Jornadas: <strong class="text-white">{{ computedDiasProyecto }}</strong>
+                </div>
               </div>
               <div class="d-flex align-items-center mt-3 mt-md-0 gap-2 ms-md-4">
                 <input type="number" class="form-control form-control-sm text-center" style="width: 70px;" v-model="editSemanasVal" min="1">
+                <select v-model="editUnidadVal" class="form-select form-select-sm" style="width: 100px;">
+                   <option value="SEMANAS">Semanas</option>
+                   <option value="DIAS">Días</option>
+                </select>
                 <button class="btn btn-sm btn-info text-dark fw-bold" @click="guardarSemanasEstimadas">
                   <i class="bi bi-floppy me-1"></i> Guardar
                 </button>
@@ -391,6 +466,10 @@ const ejecutarEliminacion = async () => {
                   </h6>
                   <span class="badge bg-success fw-bold">{{ av.porcentaje_avance }}% Completado</span>
                 </div>
+                <p class="mb-1 mt-2 text-muted small">
+                  <strong>Fecha Fin:</strong> {{ av.fecha_fin || 'No registrada' }} <span class="mx-2 text-secondary">|</span> 
+                  <strong>Días Trabajados:</strong> {{ av.dias_trabajados || '0' }}
+                </p>
                 <p class="mb-1 mt-2 text-muted small">{{ av.observaciones || "Sin observaciones." }}</p>
                 <div v-if="av.rutas_fotografias" class="mt-2 text-success small">
                   <i class="bi bi-image-fill me-1"></i>
@@ -439,6 +518,16 @@ const ejecutarEliminacion = async () => {
                 <div class="mb-3">
                   <label class="form-label small">% de Avance Físico Actual</label>
                   <input type="number" class="form-control" v-model="nuevoAvance.porcentaje_avance" min="0" max="100" required>
+                </div>
+                <div class="mb-3 d-flex gap-2">
+                  <div class="flex-fill">
+                    <label class="form-label small">Fecha Fin</label>
+                    <input type="date" class="form-control" v-model="nuevoAvance.fecha_fin" required>
+                  </div>
+                  <div class="flex-fill">
+                    <label class="form-label small">Días Trabajados</label>
+                    <input type="number" step="0.5" class="form-control" v-model="nuevoAvance.dias_trabajados" min="0" required>
+                  </div>
                 </div>
                 <div class="mb-3">
                   <label class="form-label small">Observaciones Técnicas</label>

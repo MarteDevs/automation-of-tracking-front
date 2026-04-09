@@ -25,6 +25,8 @@ export interface AvanceSemanal {
   observaciones?: string;
   rutas_fotografias?: string;
   tipo_periodo: string; // 'SEMANA' | 'DIA'
+  fecha_fin?: string;
+  dias_trabajados?: number;
 }
 
 export interface Proyecto {
@@ -34,6 +36,7 @@ export interface Proyecto {
   costo_total: number;
   utilidad_porcentaje: number;
   semanas_estimadas: number; // NUEVO
+  tipo_duracion: string; // 'SEMANAS' | 'DIAS'
   mano_de_obra: ManoObra[];
   materiales: MaterialEquipo[];
   avances: AvanceSemanal[];
@@ -137,14 +140,16 @@ export const useProyectosStore = defineStore('proyectos', {
          throw err;
       }
     },
-    async actualizarConfiguracion(proyectoId: number, semanas: number) {
+    async actualizarConfiguracion(proyectoId: number, semanas: number, tipo_duracion: string) {
       if (semanas < 1) return;
       try {
         const response = await api.put<Proyecto>(`/proyectos/${proyectoId}/configuracion`, {
-          semanas_estimadas: semanas
+          semanas_estimadas: semanas,
+          tipo_duracion: tipo_duracion
         });
         if (this.proyectoActivo && this.proyectoActivo.id === proyectoId) {
           this.proyectoActivo.semanas_estimadas = response.data.semanas_estimadas;
+          this.proyectoActivo.tipo_duracion = response.data.tipo_duracion;
         }
         return response.data;
       } catch (err: any) {
