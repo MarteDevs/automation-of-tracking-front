@@ -14,12 +14,20 @@ const nuevoAvance = ref({
   rutas_fotografias: ''
 });
 
-const evidenciaFile = ref<File | null>(null);
+const evidenciaFiles = ref<File[]>([]);
 
 const onFileSelected = (e: Event) => {
   const target = e.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
-    evidenciaFile.value = target.files[0] || null;
+    const arr = Array.from(target.files);
+    if (arr.length > 4) {
+      alert("Solo se admiten máximo 4 fotos. Se procesarán únicamente las primeras 4.");
+      evidenciaFiles.value = arr.slice(0, 4);
+    } else {
+      evidenciaFiles.value = arr;
+    }
+  } else {
+    evidenciaFiles.value = [];
   }
 };
 
@@ -43,8 +51,8 @@ const guardarAvance = async () => {
   if (store.loading) return;
   const pId = Number(route.params.id);
   
-  if (evidenciaFile.value) {
-    const rutaOficialServidor = await store.uploadImagenEvidencia(evidenciaFile.value);
+  if (evidenciaFiles.value.length > 0) {
+    const rutaOficialServidor = await store.uploadImagenEvidencia(evidenciaFiles.value);
     nuevoAvance.value.rutas_fotografias = rutaOficialServidor;
   }
 
@@ -52,7 +60,7 @@ const guardarAvance = async () => {
   
   // Limpieza Form
   nuevoAvance.value = { semana: nuevoAvance.value.semana + 1, porcentaje_avance: Math.min(100, nuevoAvance.value.porcentaje_avance + 10), observaciones: '', rutas_fotografias: '' };
-  evidenciaFile.value = null;
+  evidenciaFiles.value = [];
   const inputEl = document.getElementById('fotoInput') as HTMLInputElement;
   if (inputEl) inputEl.value = '';
 };
@@ -212,8 +220,8 @@ const descargarPDF = async (avanceId: number) => {
                   <textarea class="form-control" rows="2" v-model="nuevoAvance.observaciones"></textarea>
                 </div>
                  <div class="mb-4">
-                  <label class="form-label small">Adjuntar Fotografía Real (JPG / PNG)</label>
-                  <input type="file" id="fotoInput" class="form-control text-muted" accept="image/png, image/jpeg" @change="onFileSelected">
+                  <label class="form-label small">Adjuntar Fotografías (Máx 4, JPG/PNG)</label>
+                  <input type="file" id="fotoInput" class="form-control text-muted" accept="image/png, image/jpeg" multiple @change="onFileSelected">
                 </div>
                 <button type="submit" class="btn btn-success w-100" :disabled="store.loading">
                   <span v-if="store.loading" class="spinner-border spinner-border-sm me-2"></span>

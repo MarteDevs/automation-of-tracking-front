@@ -122,10 +122,10 @@ export const useProyectosStore = defineStore('proyectos', {
         throw err;
       }
     },
-    async uploadImagenEvidencia(file: File) {
+    async uploadImagenEvidencia(files: File[]) {
       this.error = null;
       const formData = new FormData();
-      formData.append('file', file);
+      files.forEach(f => formData.append('files', f));
       try {
         const response = await api.post('/upload-imagen/', formData, {
           headers: { 'Content-Type': 'multipart/form-data' }
