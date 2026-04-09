@@ -12,13 +12,13 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const onFileChange = (e: Event) => {
   const target = e.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
-    selectedFile.value = target.files[0];
+    selectedFile.value = target.files[0] as File;
   }
 };
 
 const handleDrop = (e: DragEvent) => {
   if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) {
-    selectedFile.value = e.dataTransfer.files[0];
+    selectedFile.value = e.dataTransfer.files[0] as File;
   }
 };
 
