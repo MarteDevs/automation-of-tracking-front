@@ -11,8 +11,13 @@ const nuevoAvance = ref({
   semana: 1,
   porcentaje_avance: 10,
   observaciones: '',
-  rutas_fotografias: ''
+  rutas_fotografias: '',
+  tipo_periodo: 'SEMANA' as 'SEMANA' | 'DIA'
 });
+
+// Etiqueta dinámica según tipo
+const labelPeriodo = computed(() => nuevoAvance.value.tipo_periodo === 'DIA' ? 'Día' : 'Semana');
+const labelNPeriodo = computed(() => nuevoAvance.value.tipo_periodo === 'DIA' ? 'N° Día' : 'N° Semana');
 
 const evidenciaFiles = ref<File[]>([]);
 
@@ -96,14 +101,15 @@ const guardarAvance = async () => {
   }
 
   await store.agregarAvance(pId, nuevoAvance.value);
-  showToast('✔ Avance semanal registrado y guardado con éxito.', 'success');
+  showToast(`✔ Reporte de ${labelPeriodo.value} ${nuevoAvance.value.semana} registrado con éxito.`, 'success');
 
-  // Limpieza Form
+  // Limpieza Form: avanza al siguiente período
   nuevoAvance.value = {
     semana: nuevoAvance.value.semana + 1,
     porcentaje_avance: Math.min(100, nuevoAvance.value.porcentaje_avance + 10),
     observaciones: '',
-    rutas_fotografias: ''
+    rutas_fotografias: '',
+    tipo_periodo: nuevoAvance.value.tipo_periodo // Mantener el tipo elegido
   };
   evidenciaFiles.value = [];
   const inputEl = document.getElementById('fotoInput') as HTMLInputElement;
@@ -287,11 +293,17 @@ const descargarPDF = async (avanceId: number) => {
             <h5 class="mb-3">Historial de Avance Real</h5>
             <div v-if="store.proyectoActivo.avances.length === 0" class="alert alert-secondary glass-panel">Sin avances registrados actualmente.</div>
 
-            <div v-for="av in store.proyectoActivo.avances" :key="av.id" class="card mb-3 glass-panel border-start border-4 border-info">
+            <div v-for="av in store.proyectoActivo.avances" :key="av.id" class="card mb-3 glass-panel border-start border-4"
+              :class="av.tipo_periodo === 'DIA' ? 'border-warning' : 'border-info'">
               <div class="card-body">
-                <div class="d-flex justify-content-between">
-                  <h6 class="fw-bold">Reporte Semana {{ av.semana }}</h6>
-                  <span class="badge bg-info fw-bold">{{ av.porcentaje_avance }}% Completado</span>
+                <div class="d-flex justify-content-between align-items-center">
+                  <h6 class="fw-bold mb-0">
+                    <span class="badge me-2" :class="av.tipo_periodo === 'DIA' ? 'bg-warning text-dark' : 'bg-info text-dark'">
+                      {{ av.tipo_periodo === 'DIA' ? 'DÍA' : 'SEMANA' }}
+                    </span>
+                    Reporte {{ av.tipo_periodo === 'DIA' ? 'Día' : 'Semana' }} {{ av.semana }}
+                  </h6>
+                  <span class="badge bg-success fw-bold">{{ av.porcentaje_avance }}% Completado</span>
                 </div>
                 <p class="mb-1 mt-2 text-muted small">{{ av.observaciones || "Sin observaciones." }}</p>
                 <div v-if="av.rutas_fotografias" class="mt-2 text-success small">
@@ -316,7 +328,23 @@ const descargarPDF = async (avanceId: number) => {
               <h5 class="mb-3"><i class="bi bi-plus-circle me-1"></i> Registrar Avance</h5>
               <form @submit.prevent="guardarAvance">
                 <div class="mb-3">
-                  <label class="form-label small">N° Semana</label>
+                  <!-- Toggle Tipo de Periodo -->
+                  <label class="form-label small fw-bold">Tipo de Control</label>
+                  <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm flex-fill fw-bold"
+                      :class="nuevoAvance.tipo_periodo === 'SEMANA' ? 'btn-info text-dark' : 'btn-outline-secondary'"
+                      @click="nuevoAvance.tipo_periodo = 'SEMANA'; nuevoAvance.semana = 1">
+                      <i class="bi bi-calendar-week me-1"></i> Por Semanas
+                    </button>
+                    <button type="button" class="btn btn-sm flex-fill fw-bold"
+                      :class="nuevoAvance.tipo_periodo === 'DIA' ? 'btn-warning text-dark' : 'btn-outline-secondary'"
+                      @click="nuevoAvance.tipo_periodo = 'DIA'; nuevoAvance.semana = 1">
+                      <i class="bi bi-calendar-day me-1"></i> Por Días
+                    </button>
+                  </div>
+                </div>
+                <div class="mb-3">
+                  <label class="form-label small">{{ labelNPeriodo }}</label>
                   <input type="number" class="form-control" v-model="nuevoAvance.semana" required>
                 </div>
                 <div class="mb-3">

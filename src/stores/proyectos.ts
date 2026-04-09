@@ -24,6 +24,7 @@ export interface AvanceSemanal {
   porcentaje_avance: number;
   observaciones?: string;
   rutas_fotografias?: string;
+  tipo_periodo: string; // 'SEMANA' | 'DIA'
 }
 
 export interface Proyecto {
