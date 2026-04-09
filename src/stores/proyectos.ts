@@ -120,6 +120,20 @@ export const useProyectosStore = defineStore('proyectos', {
         this.error = 'Falló la generación del PDF. Verifique que la IA y la Base de datos están conectadas.';
         throw err;
       }
+    },
+    async uploadImagenEvidencia(file: File) {
+      this.error = null;
+      const formData = new FormData();
+      formData.append('file', file);
+      try {
+        const response = await api.post('/upload-imagen/', formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+        return response.data.ruta_fotografias;
+      } catch (err: any) {
+         this.error = err.response?.data?.detail || 'Fallo de acceso al directorio en el servidor para almacenar foto.';
+         throw err;
+      }
     }
   }
 });

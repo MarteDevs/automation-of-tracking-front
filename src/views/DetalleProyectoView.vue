@@ -11,8 +11,17 @@ const nuevoAvance = ref({
   semana: 1,
   porcentaje_avance: 10,
   observaciones: '',
-  rutas_fotografias: '' // Puede ser URL simulada
+  rutas_fotografias: ''
 });
+
+const evidenciaFile = ref<File | null>(null);
+
+const onFileSelected = (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    evidenciaFile.value = target.files[0] || null;
+  }
+};
 
 onMounted(async () => {
   const pId = Number(route.params.id);
@@ -26,9 +35,21 @@ const formatCurrency = (val: number) => {
 };
 
 const guardarAvance = async () => {
+  if (store.loading) return;
   const pId = Number(route.params.id);
+  
+  if (evidenciaFile.value) {
+    const rutaOficialServidor = await store.uploadImagenEvidencia(evidenciaFile.value);
+    nuevoAvance.value.rutas_fotografias = rutaOficialServidor;
+  }
+
   await store.agregarAvance(pId, nuevoAvance.value);
+  
+  // Limpieza Form
   nuevoAvance.value = { semana: nuevoAvance.value.semana + 1, porcentaje_avance: Math.min(100, nuevoAvance.value.porcentaje_avance + 10), observaciones: '', rutas_fotografias: '' };
+  evidenciaFile.value = null;
+  const inputEl = document.getElementById('fotoInput') as HTMLInputElement;
+  if (inputEl) inputEl.value = '';
 };
 
 const descargarPDF = async (avanceId: number) => {
@@ -166,11 +187,12 @@ const descargarPDF = async (avanceId: number) => {
                   <textarea class="form-control" rows="2" v-model="nuevoAvance.observaciones"></textarea>
                 </div>
                  <div class="mb-4">
-                  <label class="form-label small">URL Remota Imágenes (Simulado)</label>
-                  <input type="text" class="form-control" placeholder="https://aws..." v-model="nuevoAvance.rutas_fotografias">
+                  <label class="form-label small">Adjuntar Fotografía Real (JPG / PNG)</label>
+                  <input type="file" id="fotoInput" class="form-control text-muted" accept="image/png, image/jpeg" @change="onFileSelected">
                 </div>
                 <button type="submit" class="btn btn-success w-100" :disabled="store.loading">
-                  Firmar Avance
+                  <span v-if="store.loading" class="spinner-border spinner-border-sm me-2"></span>
+                  Firmar Avance y Guardar
                 </button>
               </form>
             </div>

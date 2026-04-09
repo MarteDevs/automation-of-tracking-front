@@ -66,13 +66,18 @@ body {
 
 // Tablas oscuras sin fondo sólido
 .table {
-  color: $body-color !important;
+  color: #ffffff !important;
+  --bs-table-color: #ffffff;
   --bs-table-bg: transparent;
   --bs-table-striped-bg: rgba(255, 255, 255, 0.03);
   --bs-table-hover-bg: rgba(255, 255, 255, 0.06);
   border-color: rgba(255, 255, 255, 0.08);
 }
+.table > :not(caption) > * > * {
+  color: #ffffff !important;
+}
 .table th {
+  color: #ffffff !important;
   background-color: rgba(0, 0, 0, 0.2);
   border-bottom: 2px solid rgba(255, 255, 255, 0.15);
   font-weight: 600;
