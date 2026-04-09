@@ -23,10 +23,15 @@ const onFileSelected = (e: Event) => {
   }
 };
 
+const editSemanasVal = ref(1);
+
 onMounted(async () => {
   const pId = Number(route.params.id);
   if (pId) {
     await store.fetchProyectoActivo(pId);
+    if(store.proyectoActivo) {
+       editSemanasVal.value = store.proyectoActivo.semanas_estimadas || 1;
+    }
   }
 });
 
@@ -50,6 +55,13 @@ const guardarAvance = async () => {
   evidenciaFile.value = null;
   const inputEl = document.getElementById('fotoInput') as HTMLInputElement;
   if (inputEl) inputEl.value = '';
+};
+
+const guardarSemanasEstimadas = async () => {
+   const pId = Number(route.params.id);
+   if(pId && editSemanasVal.value >= 1) {
+      await store.actualizarConfiguracion(pId, editSemanasVal.value);
+   }
 };
 
 const descargarPDF = async (avanceId: number) => {
@@ -147,7 +159,20 @@ const descargarPDF = async (avanceId: number) => {
       <div class="tab-pane fade" id="avance" role="tabpanel">
         <div class="row">
           <div class="col-md-8">
-            <h5 class="mb-3">Historial de Avance</h5>
+            <div class="glass-panel p-3 mb-4 rounded border-start border-3 border-info d-flex flex-column flex-md-row align-items-md-center justify-content-between">
+              <div>
+                <h6 class="mb-1 text-info fw-bold"><i class="bi bi-graph-up-arrow me-1"></i> Configuración de Curva S</h6>
+                <p class="mb-0 small text-muted">Duración programada total para calcular la curva logística matemática y su asimetría.</p>
+              </div>
+              <div class="d-flex align-items-center mt-3 mt-md-0 gap-2 ms-md-4">
+                <input type="number" class="form-control form-control-sm text-center" style="width: 70px;" v-model="editSemanasVal" min="1">
+                <button class="btn btn-sm btn-info text-dark fw-bold" @click="guardarSemanasEstimadas">
+                   Salvar Plazo
+                </button>
+              </div>
+            </div>
+          
+            <h5 class="mb-3">Historial de Avance Real</h5>
             <div v-if="store.proyectoActivo.avances.length === 0" class="alert alert-secondary glass-panel">Sin avances registrados actualmente.</div>
             
             <div v-for="av in store.proyectoActivo.avances" :key="av.id" class="card mb-3 glass-panel border-start border-4 border-info">

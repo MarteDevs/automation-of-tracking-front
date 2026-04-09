@@ -32,6 +32,7 @@ export interface Proyecto {
   fecha: string;
   costo_total: number;
   utilidad_porcentaje: number;
+  semanas_estimadas: number; // NUEVO
   mano_de_obra: ManoObra[];
   materiales: MaterialEquipo[];
   avances: AvanceSemanal[];
@@ -133,6 +134,21 @@ export const useProyectosStore = defineStore('proyectos', {
       } catch (err: any) {
          this.error = err.response?.data?.detail || 'Fallo de acceso al directorio en el servidor para almacenar foto.';
          throw err;
+      }
+    },
+    async actualizarConfiguracion(proyectoId: number, semanas: number) {
+      if (semanas < 1) return;
+      try {
+        const response = await api.put<Proyecto>(`/proyectos/${proyectoId}/configuracion`, {
+          semanas_estimadas: semanas
+        });
+        if (this.proyectoActivo && this.proyectoActivo.id === proyectoId) {
+          this.proyectoActivo.semanas_estimadas = response.data.semanas_estimadas;
+        }
+        return response.data;
+      } catch (err: any) {
+        this.error = 'No se pudo guardar la configuración de Semanas.';
+        throw err;
       }
     }
   }
