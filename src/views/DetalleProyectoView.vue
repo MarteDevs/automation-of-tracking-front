@@ -140,10 +140,28 @@ const descargarPDF = async (avanceId: number) => {
 // ── Tab activo controlado por Vue (con feedback visual animado) ──
 const activeTab = ref<'rrhh' | 'mats' | 'avance'>('rrhh');
 
-const eliminarAvance = async (avId: number) => {
-  if (!confirm('¿Estás seguro de que deseas eliminar este registro de seguimiento? Esta acción no se puede deshacer.')) return;
+// --- Lógica de Eliminación con Modal Personalizado ---
+const showConfirmModal = ref(false);
+const pendingDeleteId = ref<number | null>(null);
+
+const eliminarAvance = (avId: number) => {
+  pendingDeleteId.value = avId;
+  showConfirmModal.value = true;
+};
+
+const cerrarConfirmacion = () => {
+  showConfirmModal.value = false;
+  pendingDeleteId.value = null;
+};
+
+const ejecutarEliminacion = async () => {
+  if (pendingDeleteId.value === null) return;
   
+  const avId = pendingDeleteId.value;
   const pId = Number(route.params.id);
+  
+  cerrarConfirmacion(); // Cerramos el modal inmediatamente para feedback fluido
+  
   try {
     await store.eliminarAvance(pId, avId);
     showToast('✔ Registro de seguimiento eliminado.', 'info');
@@ -154,6 +172,35 @@ const eliminarAvance = async (avId: number) => {
 </script>
 
 <template>
+  <!-- ===== OVERLAY CONFIRMACIÓN ELIMINAR ===== -->
+  <Teleport to="body">
+    <Transition name="modal-fade">
+      <div v-if="showConfirmModal" class="custom-modal-overlay">
+        <div class="custom-modal-card glass-panel shadow-2xl">
+          <div class="modal-icon-header">
+            <div class="icon-circle bg-danger bg-opacity-20 text-danger">
+              <i class="bi bi-exclamation-triangle-fill fs-3"></i>
+            </div>
+          </div>
+          
+          <div class="modal-content-body text-center px-4">
+            <h4 class="fw-bold text-white mb-2">¿Eliminar registro?</h4>
+            <p class="text-muted small mb-0">Esta acción eliminará permanentemente este reporte de seguimiento y sus datos asociados. No se puede deshacer.</p>
+          </div>
+
+          <div class="modal-footer-actions d-flex gap-2 p-4 mt-2">
+            <button @click="cerrarConfirmacion" class="btn btn-secondary flex-fill fw-bold">
+              Cancelar
+            </button>
+            <button @click="ejecutarEliminacion" class="btn btn-danger flex-fill fw-bold shadow-lg">
+              Sí, Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
   <!-- ===== OVERLAY GENERANDO PDF ===== -->
   <Teleport to="body">
     <div v-if="generandoPDF"
@@ -514,19 +561,62 @@ const eliminarAvance = async (avId: number) => {
 }
 
 /* ── Tab Slide Transition ── */
-.tab-slide-enter-active {
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-.tab-slide-leave-active {
-  transition: opacity 0.15s ease;
-  position: absolute;
-  width: 100%;
-}
-.tab-slide-enter-from {
-  opacity: 0;
-  transform: translateY(8px);
-}
 .tab-slide-leave-to {
+  opacity: 0;
+}
+
+/* ── Custom Modal Styles ── */
+.custom-modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.custom-modal-card {
+  width: 100%;
+  max-width: 400px;
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  overflow: hidden;
+  animation: modal-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes modal-pop {
+  from { transform: scale(0.9) translateY(20px); opacity: 0; }
+  to { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.modal-icon-header {
+  display: flex;
+  justify-content: center;
+  padding-top: 30px;
+  padding-bottom: 20px;
+}
+
+.icon-circle {
+  width: 65px;
+  height: 65px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid rgba(220, 53, 69, 0.2);
+}
+
+/* Modal Fade Transition */
+.modal-fade-enter-active,
+.modal-fade-leave-active {
+  transition: opacity 0.25s ease;
+}
+.modal-fade-enter-from,
+.modal-fade-leave-to {
   opacity: 0;
 }
 </style>
