@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { useProyectosStore } from '@/stores/proyectos';
 
@@ -55,6 +55,16 @@ onMounted(async () => {
 const formatCurrency = (val: number) => {
   return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(val);
 };
+
+const totalManoObra = computed(() =>
+  (store.proyectoActivo?.mano_de_obra ?? []).reduce((acc, mo) => acc + mo.total, 0)
+);
+
+const totalMateriales = computed(() =>
+  (store.proyectoActivo?.materiales ?? []).reduce((acc, mat) => acc + mat.total, 0)
+);
+
+const totalGeneral = computed(() => totalManoObra.value + totalMateriales.value);
 
 const guardarAvance = async () => {
   if (store.loading) return;
@@ -131,9 +141,9 @@ const descargarPDF = async (avanceId: number) => {
             <thead>
               <tr>
                 <th>Cargo / Descripción</th>
-                <th>Cant. Obra</th>
+                <th>Cant. Trabajadores</th>
                 <th>Precio Unit.</th>
-                <th>Total C/Leyes Soc.</th>
+                <th>Total a Pagar</th>
               </tr>
             </thead>
             <tbody>
@@ -144,6 +154,12 @@ const descargarPDF = async (avanceId: number) => {
                 <td class="text-success fw-bold">{{ formatCurrency(mo.total) }}</td>
               </tr>
             </tbody>
+            <tfoot>
+              <tr class="border-top border-secondary">
+                <td colspan="3" class="fw-bold text-end text-muted">Subtotal Mano de Obra:</td>
+                <td class="fw-bold text-warning fs-6">{{ formatCurrency(totalManoObra) }}</td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
@@ -168,7 +184,24 @@ const descargarPDF = async (avanceId: number) => {
                 <td class="text-success fw-bold">{{ formatCurrency(mat.total) }}</td>
               </tr>
             </tbody>
+            <tfoot>
+              <tr class="border-top border-secondary">
+                <td colspan="3" class="fw-bold text-end text-muted">Subtotal Materiales:</td>
+                <td class="fw-bold text-warning fs-6">{{ formatCurrency(totalMateriales) }}</td>
+              </tr>
+            </tfoot>
           </table>
+
+          <!-- TOTAL GENERAL -->
+          <div class="d-flex justify-content-end mt-3">
+            <div class="glass-panel px-4 py-3 border-primary bg-primary bg-opacity-10 text-end" style="min-width: 280px;">
+              <span class="d-block small text-muted mb-1">Mano de Obra + Materiales</span>
+              <div class="d-flex justify-content-between align-items-center gap-4">
+                <span class="fw-bold text-white">Total General a Pagar:</span>
+                <span class="fw-bold text-primary fs-5">{{ formatCurrency(totalGeneral) }}</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
