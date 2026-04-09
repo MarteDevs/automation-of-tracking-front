@@ -143,7 +143,7 @@ const descargarPDF = async (avanceId: number) => {
                 <th>Cargo / Descripción</th>
                 <th>Cant. Trabajadores</th>
                 <th>Precio Unit.</th>
-                <th>Total a Pagar</th>
+                <th>Total a Mano De Obra</th>
               </tr>
             </thead>
             <tbody>
