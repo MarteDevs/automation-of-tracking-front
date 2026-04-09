@@ -12,7 +12,14 @@ const fileInput = ref<HTMLInputElement | null>(null);
 const onFileChange = (e: Event) => {
   const target = e.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
-    selectedFile.value = target.files[0] as File;
+    const file = target.files[0];
+    if (file && file.size > 10 * 1024 * 1024) { // 10MB
+      alert("El archivo es demasiado grande (Máximo 10MB).");
+      target.value = '';
+      selectedFile.value = null;
+      return;
+    }
+    selectedFile.value = file as File;
   }
 };
 

@@ -20,11 +20,20 @@ const onFileSelected = (e: Event) => {
   const target = e.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
     const arr = Array.from(target.files);
-    if (arr.length > 4) {
-      alert("Solo se admiten máximo 4 fotos. Se procesarán únicamente las primeras 4.");
-      evidenciaFiles.value = arr.slice(0, 4);
+    
+    // Filtrar archivos mayores a 5MB
+    const tooBig = arr.filter(f => f.size > 5 * 1024 * 1024);
+    if (tooBig.length > 0) {
+      alert(`Se han omitido ${tooBig.length} imágenes por superar el límite de 5MB.`);
+    }
+    
+    const validFiles = arr.filter(f => f.size <= 5 * 1024 * 1024);
+    
+    if (validFiles.length > 4) {
+      alert("Solo se admiten máximo 4 fotos. Se procesarán únicamente las primeras 4 válidas.");
+      evidenciaFiles.value = validFiles.slice(0, 4);
     } else {
-      evidenciaFiles.value = arr;
+      evidenciaFiles.value = validFiles;
     }
   } else {
     evidenciaFiles.value = [];
