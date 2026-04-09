@@ -162,6 +162,15 @@ export const useProyectosStore = defineStore('proyectos', {
         this.error = 'No se pudo eliminar el registro de seguimiento seleccionado.';
         throw err;
       }
+    },
+    async eliminarProyecto(id: number) {
+      try {
+        await api.delete(`/proyectos/${id}`);
+        this.proyectos = this.proyectos.filter(p => p.id !== id);
+      } catch (err: any) {
+        this.error = 'No se pudo eliminar el proyecto solicitado.';
+        throw err;
+      }
     }
   }
 });
