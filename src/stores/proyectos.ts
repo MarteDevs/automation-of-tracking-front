@@ -4,17 +4,23 @@ import api from '../api/axios';
 // --- Interfaces TS ---
 export interface ManoObra {
   id?: number;
+  categoria?: string;
   descripcion: string;
+  unidad?: string;
   cantidad_trabajadores: number;
   precio_unitario: number;
+  dias?: number;
   total: number;
 }
 
 export interface MaterialEquipo {
   id?: number;
+  categoria?: string;
   descripcion: string;
   cantidad: number;
   unidad: string;
+  precio_unitario?: number;
+  dias?: number;
   total: number;
 }
 

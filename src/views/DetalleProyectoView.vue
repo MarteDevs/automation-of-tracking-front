@@ -318,8 +318,8 @@ const ejecutarEliminacion = async () => {
         :class="{ active: activeTab === 'rrhh' }"
         @click="activeTab = 'rrhh'"
       >
-        <i class="bi bi-people-fill"></i>
-        Personal &amp; Mano de Obra
+        <i class="bi bi-building"></i>
+        Costos Fijos
         <span class="tab-badge">{{ store.proyectoActivo.mano_de_obra.length }}</span>
       </button>
       <button
@@ -328,7 +328,7 @@ const ejecutarEliminacion = async () => {
         @click="activeTab = 'mats'"
       >
         <i class="bi bi-boxes"></i>
-        Materiales, EPP y Equipos
+        Costos Variables
         <span class="tab-badge">{{ store.proyectoActivo.materiales.length }}</span>
       </button>
       <button
@@ -354,23 +354,29 @@ const ejecutarEliminacion = async () => {
           <table class="table table-hover mb-0">
             <thead>
               <tr>
-                <th>Cargo / Descripción</th>
-                <th>Cant. Trabajadores</th>
-                <th>Precio Unit.</th>
-                <th>Total a Mano De Obra</th>
+                <th>Categoría</th>
+                <th>Descripción / Rubro</th>
+                <th>Und.</th>
+                <th>Cant.</th>
+                <th>P.Unit</th>
+                <th>Días</th>
+                <th>Costo Total</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="mo in store.proyectoActivo.mano_de_obra" :key="mo.id">
+                <td><span class="badge bg-secondary">{{ mo.categoria || 'Mano de Obra' }}</span></td>
                 <td class="fw-medium">{{ mo.descripcion }}</td>
+                <td>{{ mo.unidad || '-' }}</td>
                 <td>{{ mo.cantidad_trabajadores }}</td>
                 <td>{{ formatCurrency(mo.precio_unitario) }}</td>
+                <td>{{ mo.dias || '1' }}</td>
                 <td class="text-success fw-bold">{{ formatCurrency(mo.total) }}</td>
               </tr>
             </tbody>
             <tfoot>
               <tr class="border-top border-secondary">
-                <td colspan="3" class="fw-bold text-end text-muted">Subtotal Mano de Obra:</td>
+                <td colspan="6" class="fw-bold text-end text-muted">Subtotal Costos Fijos:</td>
                 <td class="fw-bold text-warning fs-6">{{ formatCurrency(totalManoObra) }}</td>
               </tr>
             </tfoot>
@@ -386,23 +392,29 @@ const ejecutarEliminacion = async () => {
           <table class="table table-hover mb-0">
             <thead>
               <tr>
+                <th>Categoría</th>
                 <th>Insumo / Descripción</th>
-                <th>Ctd.</th>
-                <th>Unidad</th>
+                <th>Und.</th>
+                <th>Cant.</th>
+                <th>P.Unit</th>
+                <th>Días</th>
                 <th>Costo Total</th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="mat in store.proyectoActivo.materiales" :key="mat.id">
+                <td><span class="badge bg-info text-dark">{{ mat.categoria || 'Materiales' }}</span></td>
                 <td class="fw-medium">{{ mat.descripcion }}</td>
+                <td>{{ mat.unidad || '-' }}</td>
                 <td>{{ mat.cantidad }}</td>
-                <td><span class="badge bg-secondary">{{ mat.unidad }}</span></td>
+                <td>{{ formatCurrency(mat.precio_unitario || 0) }}</td>
+                <td>{{ mat.dias || '1' }}</td>
                 <td class="text-success fw-bold">{{ formatCurrency(mat.total) }}</td>
               </tr>
             </tbody>
             <tfoot>
               <tr class="border-top border-secondary">
-                <td colspan="3" class="fw-bold text-end text-muted">Subtotal Materiales:</td>
+                <td colspan="6" class="fw-bold text-end text-muted">Subtotal Costos Variables:</td>
                 <td class="fw-bold text-warning fs-6">{{ formatCurrency(totalMateriales) }}</td>
               </tr>
             </tfoot>
@@ -411,7 +423,7 @@ const ejecutarEliminacion = async () => {
           <!-- TOTAL GENERAL -->
           <div class="d-flex justify-content-end mt-3">
             <div class="glass-panel px-4 py-3 border-primary bg-primary bg-opacity-10 text-end" style="min-width: 280px;">
-              <span class="d-block small text-muted mb-1">Mano de Obra + Materiales</span>
+              <span class="d-block small text-muted mb-1">Costos Fijos + Costos Variables</span>
               <div class="d-flex justify-content-between align-items-center gap-4">
                 <span class="fw-bold text-white">Total General a Pagar:</span>
                 <span class="fw-bold text-primary fs-5">{{ formatCurrency(totalGeneral) }}</span>
