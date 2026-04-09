@@ -137,6 +137,8 @@ const descargarPDF = async (avanceId: number) => {
     generandoPDF.value = false;
   }
 };
+// ── Tab activo controlado por Vue (con feedback visual animado) ──
+const activeTab = ref<'rrhh' | 'mats' | 'avance'>('rrhh');
 </script>
 
 <template>
@@ -186,24 +188,45 @@ const descargarPDF = async (avanceId: number) => {
       </div>
     </div>
 
-    <!-- Bootstrap Tabs Nav -->
-    <ul class="nav nav-tabs border-bottom-0 mb-4" id="projectTabs" role="tablist">
-      <li class="nav-item" role="presentation">
-        <button class="nav-link active bg-transparent text-white fw-bold border-0 border-bottom border-primary" id="rrhh-tab" data-bs-toggle="tab" data-bs-target="#rrhh" type="button" role="tab">Personal & Mano de Obra</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link bg-transparent text-muted border-0" id="mats-tab" data-bs-toggle="tab" data-bs-target="#mats" type="button" role="tab">Materiales, EPP y Equipos</button>
-      </li>
-      <li class="nav-item" role="presentation">
-        <button class="nav-link bg-transparent text-muted border-0" id="avance-tab" data-bs-toggle="tab" data-bs-target="#avance" type="button" role="tab">Control de Avance Semanal</button>
-      </li>
-    </ul>
+    <!-- ── Tabs Nav Vue ── -->
+    <div class="vue-tabs mb-4">
+      <button
+        class="vue-tab-btn"
+        :class="{ active: activeTab === 'rrhh' }"
+        @click="activeTab = 'rrhh'"
+      >
+        <i class="bi bi-people-fill"></i>
+        Personal &amp; Mano de Obra
+        <span class="tab-badge">{{ store.proyectoActivo.mano_de_obra.length }}</span>
+      </button>
+      <button
+        class="vue-tab-btn"
+        :class="{ active: activeTab === 'mats' }"
+        @click="activeTab = 'mats'"
+      >
+        <i class="bi bi-boxes"></i>
+        Materiales, EPP y Equipos
+        <span class="tab-badge">{{ store.proyectoActivo.materiales.length }}</span>
+      </button>
+      <button
+        class="vue-tab-btn"
+        :class="{ active: activeTab === 'avance' }"
+        @click="activeTab = 'avance'"
+      >
+        <i class="bi bi-bar-chart-line-fill"></i>
+        Control de Avance
+        <span class="tab-badge" :class="{ 'tab-badge-info': store.proyectoActivo.avances.length > 0 }">
+          {{ store.proyectoActivo.avances.length }}
+        </span>
+      </button>
+    </div>
 
-    <!-- Tabs Content -->
-    <div class="tab-content" id="myTabContent">
+    <!-- ── Tab Content con transiciones ── -->
+    <div class="tab-content-wrapper">
 
       <!-- RRHH -->
-      <div class="tab-pane fade show active" id="rrhh" role="tabpanel">
+      <Transition name="tab-slide">
+      <div v-if="activeTab === 'rrhh'" class="tab-section">
         <div class="table-responsive glass-panel p-2">
           <table class="table table-hover mb-0">
             <thead>
@@ -231,9 +254,11 @@ const descargarPDF = async (avanceId: number) => {
           </table>
         </div>
       </div>
+      </Transition>
 
       <!-- MATERIALES -->
-      <div class="tab-pane fade" id="mats" role="tabpanel">
+      <Transition name="tab-slide">
+      <div v-if="activeTab === 'mats'" class="tab-section">
         <div class="table-responsive glass-panel p-2">
           <table class="table table-hover mb-0">
             <thead>
@@ -272,9 +297,11 @@ const descargarPDF = async (avanceId: number) => {
           </div>
         </div>
       </div>
+      </Transition>
 
       <!-- AVANCES SEMANALES -->
-      <div class="tab-pane fade" id="avance" role="tabpanel">
+      <Transition name="tab-slide">
+      <div v-if="activeTab === 'avance'" class="tab-section">
         <div class="row">
           <div class="col-md-8">
             <div class="glass-panel p-3 mb-4 rounded border-start border-3 border-info d-flex flex-column flex-md-row align-items-md-center justify-content-between">
@@ -372,12 +399,14 @@ const descargarPDF = async (avanceId: number) => {
           </div>
         </div>
       </div>
+      </Transition>
 
     </div>
   </div>
 </template>
 
 <style scoped>
+/* ── Toast animations ── */
 .toast-fade-enter-active,
 .toast-fade-leave-active {
   transition: all 0.35s ease;
@@ -389,5 +418,100 @@ const descargarPDF = async (avanceId: number) => {
 .toast-fade-leave-to {
   opacity: 0;
   transform: translateX(40px);
+}
+
+/* ── Vue Tab Nav ── */
+.vue-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0;
+}
+
+.vue-tab-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: transparent;
+  border: none;
+  color: rgba(148, 163, 184, 0.75);
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 10px 18px;
+  border-radius: 8px 8px 0 0;
+  cursor: pointer;
+  transition: color 0.2s ease, background 0.2s ease;
+  outline: none;
+}
+.vue-tab-btn::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: transparent;
+  transition: background 0.25s ease;
+  border-radius: 2px 2px 0 0;
+}
+.vue-tab-btn:hover {
+  color: #e2e8f0;
+  background: rgba(255, 255, 255, 0.05);
+}
+.vue-tab-btn.active {
+  color: #fff;
+  font-weight: 600;
+  background: rgba(59, 130, 246, 0.12);
+}
+.vue-tab-btn.active::after {
+  background: linear-gradient(90deg, #3b82f6, #8b5cf6);
+}
+
+/* ── Tab Badge ── */
+.tab-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(200, 200, 200, 0.8);
+  transition: background 0.25s ease, color 0.25s ease;
+}
+.vue-tab-btn.active .tab-badge {
+  background: rgba(59, 130, 246, 0.35);
+  color: #93c5fd;
+}
+.tab-badge-info {
+  background: rgba(16, 185, 129, 0.25) !important;
+  color: #6ee7b7 !important;
+}
+
+/* ── Tab Content Wrapper ── */
+.tab-content-wrapper {
+  min-height: 200px;
+  position: relative;
+}
+
+/* ── Tab Slide Transition ── */
+.tab-slide-enter-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.tab-slide-leave-active {
+  transition: opacity 0.15s ease;
+  position: absolute;
+  width: 100%;
+}
+.tab-slide-enter-from {
+  opacity: 0;
+  transform: translateY(8px);
+}
+.tab-slide-leave-to {
+  opacity: 0;
 }
 </style>
