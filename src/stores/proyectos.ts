@@ -151,6 +151,17 @@ export const useProyectosStore = defineStore('proyectos', {
         this.error = 'No se pudo guardar la configuración de Semanas.';
         throw err;
       }
+    },
+    async eliminarAvance(proyectoId: number, avanceId: number) {
+      try {
+        await api.delete(`/proyectos/${proyectoId}/avances/${avanceId}`);
+        if (this.proyectoActivo && this.proyectoActivo.id === proyectoId) {
+          this.proyectoActivo.avances = this.proyectoActivo.avances.filter(a => a.id !== avanceId);
+        }
+      } catch (err: any) {
+        this.error = 'No se pudo eliminar el registro de seguimiento seleccionado.';
+        throw err;
+      }
     }
   }
 });

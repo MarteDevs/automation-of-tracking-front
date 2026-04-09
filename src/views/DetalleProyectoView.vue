@@ -139,6 +139,18 @@ const descargarPDF = async (avanceId: number) => {
 };
 // ── Tab activo controlado por Vue (con feedback visual animado) ──
 const activeTab = ref<'rrhh' | 'mats' | 'avance'>('rrhh');
+
+const eliminarAvance = async (avId: number) => {
+  if (!confirm('¿Estás seguro de que deseas eliminar este registro de seguimiento? Esta acción no se puede deshacer.')) return;
+  
+  const pId = Number(route.params.id);
+  try {
+    await store.eliminarAvance(pId, avId);
+    showToast('✔ Registro de seguimiento eliminado.', 'info');
+  } catch {
+    showToast('Error al intentar eliminar el registro.', 'danger');
+  }
+};
 </script>
 
 <template>
@@ -338,7 +350,10 @@ const activeTab = ref<'rrhh' | 'mats' | 'avance'>('rrhh');
                   {{ av.rutas_fotografias.split(',').length }} fotografía(s) adjuntada(s)
                 </div>
 
-                <div class="mt-3 text-end border-top border-secondary pt-2">
+                <div class="mt-3 d-flex justify-content-end align-items-center gap-2 border-top border-secondary pt-2">
+                  <button @click="eliminarAvance(av.id!)" class="btn btn-sm btn-outline-danger" title="Eliminar Seguimiento">
+                    <i class="bi bi-trash3"></i>
+                  </button>
                   <button @click="descargarPDF(av.id!)" :disabled="generandoPDF"
                     class="btn btn-sm btn-outline-light d-inline-flex align-items-center">
                     <span v-if="generandoPDF" class="spinner-border spinner-border-sm me-2"></span>
