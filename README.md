@@ -1,48 +1,32 @@
-# control_soldadura_front
+# 🏗️ Control Derek Welding - Frontend
 
-This template should help get you started developing with Vue 3 in Vite.
+Sistema avanzado de gestión y seguimiento de proyectos de soldadura mediante Inteligencia Artificial. Este módulo se encarga de la interfaz gráfica, visualización de datos de ingeniería y la interacción con la API de procesamiento de presupuestos.
 
-## Recommended IDE Setup
+## 🚀 Funcionalidades Clave
+- **Dashboard de Gestión**: Visualización clara del estado de todos los proyectos activos.
+- **Ingesta de PDFs con IA**: Procesamiento mediante OpenAI para desglosar presupuestos crudos.
+- **Control de Curva "S"**: Gráficos dinámicos que comparan el avance físico real vs. el planificado (Modelo Logístico).
+- **Reportes Automatizados**: Generación de PDFs profesionales con resúmenes ejecutivos escritos por IA.
 
-[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and disable Vetur).
+## 📘 Documentación para Usuarios
+Para aprender a utilizar el sistema y dominar la estrategia de la Curva "S", consulta nuestra guía detallada:
+👉 **[MANUAL DE OPERACIÓN](file:///d:/vps-program-proyects/control_soldadura_front/MANUAL_DE_OPERACION.md)**
 
-## Recommended Browser Setup
+---
 
-- Chromium-based browsers (Chrome, Edge, Brave, etc.):
-  - [Vue.js devtools](https://chromewebstore.google.com/detail/vuejs-devtools/nhdogjmejiglipccpnnnanhbledajbpd)
-  - [Turn on Custom Object Formatter in Chrome DevTools](http://bit.ly/object-formatters)
-- Firefox:
-  - [Vue.js devtools](https://addons.mozilla.org/en-US/firefox/addon/vue-js-devtools/)
-  - [Turn on Custom Object Formatter in Firefox DevTools](https://fxdx.dev/firefox-devtools-custom-object-formatters/)
+## 🛠️ Configuración para Desarrolladores
 
-## Type Support for `.vue` Imports in TS
+### Setup de IDE Recomendado
+[VS Code](https://code.visualstudio.com/) + [Vue (Official)](https://marketplace.visualstudio.com/items?itemName=Vue.volar).
 
-TypeScript cannot handle type information for `.vue` imports by default, so we replace the `tsc` CLI with `vue-tsc` for type checking. In editors, we need [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) to make the TypeScript language service aware of `.vue` types.
-
-## Customize configuration
-
-See [Vite Configuration Reference](https://vite.dev/config/).
-
-## Project Setup
-
+### Instalación y Ejecución
 ```sh
 npm install
-```
-
-### Compile and Hot-Reload for Development
-
-```sh
 npm run dev
 ```
 
-### Type-Check, Compile and Minify for Production
-
-```sh
-npm run build
-```
-
-### Lint with [ESLint](https://eslint.org/)
-
-```sh
-npm run lint
-```
+### Tecnologías Utilizadas
+- **Core**: Vue 3 (Composition API) + TypeScript
+- **Store**: Pinia
+- **Styling**: Bootstrap 5 + Glassmorphism Custom UI
+- **Build**: Vite
