@@ -16,24 +16,42 @@ const nuevoAvance = ref({
 
 const evidenciaFiles = ref<File[]>([]);
 
+// --- Estados para feedback visual ---
+type ToastType = 'success' | 'danger' | 'info';
+interface Toast { id: number; message: string; type: ToastType; }
+const toasts = ref<Toast[]>([]);
+let toastCounter = 0;
+
+const showToast = (message: string, type: ToastType = 'success') => {
+  const id = ++toastCounter;
+  toasts.value.push({ id, message, type });
+  setTimeout(() => {
+    toasts.value = toasts.value.filter(t => t.id !== id);
+  }, 3500);
+};
+
+const generandoPDF = ref(false);
+
 const onFileSelected = (e: Event) => {
   const target = e.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
     const arr = Array.from(target.files);
-    
-    // Filtrar archivos mayores a 5MB
+
     const tooBig = arr.filter(f => f.size > 5 * 1024 * 1024);
     if (tooBig.length > 0) {
-      alert(`Se han omitido ${tooBig.length} imágenes por superar el límite de 5MB.`);
+      showToast(`Se omitieron ${tooBig.length} imágenes por superar 5MB.`, 'danger');
     }
-    
+
     const validFiles = arr.filter(f => f.size <= 5 * 1024 * 1024);
-    
+
     if (validFiles.length > 4) {
-      alert("Solo se admiten máximo 4 fotos. Se procesarán únicamente las primeras 4 válidas.");
+      showToast('Máximo 4 fotos. Se tomaron las primeras 4 válidas.', 'info');
       evidenciaFiles.value = validFiles.slice(0, 4);
     } else {
       evidenciaFiles.value = validFiles;
+      if (validFiles.length > 0) {
+        showToast(`${validFiles.length} imagen(es) seleccionada(s) y lista(s) para subir.`, 'info');
+      }
     }
   } else {
     evidenciaFiles.value = [];
@@ -46,8 +64,8 @@ onMounted(async () => {
   const pId = Number(route.params.id);
   if (pId) {
     await store.fetchProyectoActivo(pId);
-    if(store.proyectoActivo) {
-       editSemanasVal.value = store.proyectoActivo.semanas_estimadas || 1;
+    if (store.proyectoActivo) {
+      editSemanasVal.value = store.proyectoActivo.semanas_estimadas || 1;
     }
   }
 });
@@ -69,38 +87,82 @@ const totalGeneral = computed(() => totalManoObra.value + totalMateriales.value)
 const guardarAvance = async () => {
   if (store.loading) return;
   const pId = Number(route.params.id);
-  
+
   if (evidenciaFiles.value.length > 0) {
+    showToast('Subiendo imágenes al servidor...', 'info');
     const rutaOficialServidor = await store.uploadImagenEvidencia(evidenciaFiles.value);
     nuevoAvance.value.rutas_fotografias = rutaOficialServidor;
+    showToast(`✔ ${evidenciaFiles.value.length} imagen(es) guardada(s) correctamente.`, 'success');
   }
 
   await store.agregarAvance(pId, nuevoAvance.value);
-  
+  showToast('✔ Avance semanal registrado y guardado con éxito.', 'success');
+
   // Limpieza Form
-  nuevoAvance.value = { semana: nuevoAvance.value.semana + 1, porcentaje_avance: Math.min(100, nuevoAvance.value.porcentaje_avance + 10), observaciones: '', rutas_fotografias: '' };
+  nuevoAvance.value = {
+    semana: nuevoAvance.value.semana + 1,
+    porcentaje_avance: Math.min(100, nuevoAvance.value.porcentaje_avance + 10),
+    observaciones: '',
+    rutas_fotografias: ''
+  };
   evidenciaFiles.value = [];
   const inputEl = document.getElementById('fotoInput') as HTMLInputElement;
   if (inputEl) inputEl.value = '';
 };
 
 const guardarSemanasEstimadas = async () => {
-   const pId = Number(route.params.id);
-   if(pId && editSemanasVal.value >= 1) {
-      await store.actualizarConfiguracion(pId, editSemanasVal.value);
-   }
+  const pId = Number(route.params.id);
+  if (pId && editSemanasVal.value >= 1) {
+    await store.actualizarConfiguracion(pId, editSemanasVal.value);
+    showToast(`✔ Plazo guardado: ${editSemanasVal.value} semanas.`, 'success');
+  }
 };
 
 const descargarPDF = async (avanceId: number) => {
   const pId = Number(route.params.id);
-  if(!pId || !avanceId) return;
-  
-  // Opcionalmente se puede bloquear la UI, pero como descarga directo, lo hacemos silencioso
-  await store.descargarReportePdf(pId, avanceId);
+  if (!pId || !avanceId) return;
+  generandoPDF.value = true;
+  try {
+    await store.descargarReportePdf(pId, avanceId);
+    showToast('✔ Reporte PDF generado y descargado.', 'success');
+  } catch {
+    showToast('Error al generar el PDF.', 'danger');
+  } finally {
+    generandoPDF.value = false;
+  }
 };
 </script>
 
 <template>
+  <!-- ===== OVERLAY GENERANDO PDF ===== -->
+  <Teleport to="body">
+    <div v-if="generandoPDF"
+      style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+      <div class="spinner-border text-danger" style="width:3.5rem;height:3.5rem;" role="status"></div>
+      <span class="fw-bold text-white fs-5">Generando Reporte PDF con IA...</span>
+      <small class="text-muted">Esto puede tardar unos segundos, por favor espere.</small>
+    </div>
+  </Teleport>
+
+  <!-- ===== TOASTS ===== -->
+  <Teleport to="body">
+    <div style="position:fixed;bottom:24px;right:24px;z-index:9998;display:flex;flex-direction:column;gap:10px;min-width:300px;">
+      <transition-group name="toast-fade">
+        <div v-for="t in toasts" :key="t.id"
+          :class="`alert alert-${t.type} shadow-lg mb-0 d-flex align-items-center gap-2 py-2 px-3`"
+          style="border-radius:10px;animation:none;">
+          <i :class="{
+            'bi bi-check-circle-fill': t.type === 'success',
+            'bi bi-exclamation-triangle-fill': t.type === 'danger',
+            'bi bi-info-circle-fill': t.type === 'info'
+          }"></i>
+          <span class="small fw-medium">{{ t.message }}</span>
+        </div>
+      </transition-group>
+    </div>
+  </Teleport>
+
+  <!-- ===== CONTENIDO PRINCIPAL ===== -->
   <div v-if="store.loading && !store.proyectoActivo" class="text-center py-5">
     <div class="spinner-border text-primary" role="status"></div>
   </div>
@@ -133,7 +195,7 @@ const descargarPDF = async (avanceId: number) => {
 
     <!-- Tabs Content -->
     <div class="tab-content" id="myTabContent">
-      
+
       <!-- RRHH -->
       <div class="tab-pane fade show active" id="rrhh" role="tabpanel">
         <div class="table-responsive glass-panel p-2">
@@ -217,14 +279,14 @@ const descargarPDF = async (avanceId: number) => {
               <div class="d-flex align-items-center mt-3 mt-md-0 gap-2 ms-md-4">
                 <input type="number" class="form-control form-control-sm text-center" style="width: 70px;" v-model="editSemanasVal" min="1">
                 <button class="btn btn-sm btn-info text-dark fw-bold" @click="guardarSemanasEstimadas">
-                   Salvar Plazo
+                  <i class="bi bi-floppy me-1"></i> Guardar
                 </button>
               </div>
             </div>
-          
+
             <h5 class="mb-3">Historial de Avance Real</h5>
             <div v-if="store.proyectoActivo.avances.length === 0" class="alert alert-secondary glass-panel">Sin avances registrados actualmente.</div>
-            
+
             <div v-for="av in store.proyectoActivo.avances" :key="av.id" class="card mb-3 glass-panel border-start border-4 border-info">
               <div class="card-body">
                 <div class="d-flex justify-content-between">
@@ -232,19 +294,23 @@ const descargarPDF = async (avanceId: number) => {
                   <span class="badge bg-info fw-bold">{{ av.porcentaje_avance }}% Completado</span>
                 </div>
                 <p class="mb-1 mt-2 text-muted small">{{ av.observaciones || "Sin observaciones." }}</p>
-                <div v-if="av.rutas_fotografias" class="mt-2 text-primary small">
-                  <i class="bi bi-image"></i> Fotografías Adjuntadas / URL: {{ av.rutas_fotografias }}
+                <div v-if="av.rutas_fotografias" class="mt-2 text-success small">
+                  <i class="bi bi-image-fill me-1"></i>
+                  {{ av.rutas_fotografias.split(',').length }} fotografía(s) adjuntada(s)
                 </div>
-                
+
                 <div class="mt-3 text-end border-top border-secondary pt-2">
-                  <button @click="descargarPDF(av.id!)" class="btn btn-sm btn-outline-light d-inline-flex align-items-center">
-                    <i class="bi bi-file-earmark-pdf-fill text-danger fs-5 me-2"></i> Generar Reporte PDF
+                  <button @click="descargarPDF(av.id!)" :disabled="generandoPDF"
+                    class="btn btn-sm btn-outline-light d-inline-flex align-items-center">
+                    <span v-if="generandoPDF" class="spinner-border spinner-border-sm me-2"></span>
+                    <i v-else class="bi bi-file-earmark-pdf-fill text-danger fs-5 me-2"></i>
+                    {{ generandoPDF ? 'Generando...' : 'Generar Reporte PDF' }}
                   </button>
                 </div>
               </div>
             </div>
           </div>
-          
+
           <div class="col-md-4">
             <div class="glass-panel p-4">
               <h5 class="mb-3"><i class="bi bi-plus-circle me-1"></i> Registrar Avance</h5>
@@ -253,7 +319,7 @@ const descargarPDF = async (avanceId: number) => {
                   <label class="form-label small">N° Semana</label>
                   <input type="number" class="form-control" v-model="nuevoAvance.semana" required>
                 </div>
-                 <div class="mb-3">
+                <div class="mb-3">
                   <label class="form-label small">% de Avance Físico Actual</label>
                   <input type="number" class="form-control" v-model="nuevoAvance.porcentaje_avance" min="0" max="100" required>
                 </div>
@@ -261,13 +327,17 @@ const descargarPDF = async (avanceId: number) => {
                   <label class="form-label small">Observaciones Técnicas</label>
                   <textarea class="form-control" rows="2" v-model="nuevoAvance.observaciones"></textarea>
                 </div>
-                 <div class="mb-4">
-                  <label class="form-label small">Adjuntar Fotografías (Máx 4, JPG/PNG)</label>
+                <div class="mb-3">
+                  <label class="form-label small">Adjuntar Fotografías (Máx 4, JPG/PNG, hasta 5MB c/u)</label>
                   <input type="file" id="fotoInput" class="form-control text-muted" accept="image/png, image/jpeg" multiple @change="onFileSelected">
+                  <div v-if="evidenciaFiles.length > 0" class="mt-1 text-info small">
+                    <i class="bi bi-paperclip"></i> {{ evidenciaFiles.length }} archivo(s) listo(s) para subir
+                  </div>
                 </div>
                 <button type="submit" class="btn btn-success w-100" :disabled="store.loading">
                   <span v-if="store.loading" class="spinner-border spinner-border-sm me-2"></span>
-                  Firmar Avance y Guardar
+                  <i v-else class="bi bi-floppy me-1"></i>
+                  {{ store.loading ? 'Guardando...' : 'Firmar Avance y Guardar' }}
                 </button>
               </form>
             </div>
@@ -278,3 +348,18 @@ const descargarPDF = async (avanceId: number) => {
     </div>
   </div>
 </template>
+
+<style scoped>
+.toast-fade-enter-active,
+.toast-fade-leave-active {
+  transition: all 0.35s ease;
+}
+.toast-fade-enter-from {
+  opacity: 0;
+  transform: translateX(40px);
+}
+.toast-fade-leave-to {
+  opacity: 0;
+  transform: translateX(40px);
+}
+</style>
