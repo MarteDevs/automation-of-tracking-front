@@ -11,15 +11,26 @@ const nuevoAvance = ref({
   porcentaje_avance: 10,
   observaciones: '',
   rutas_fotografias: '',
-  tipo_periodo: 'SEMANA' as 'SEMANA' | 'DIA',
+  tipo_periodo: 'SEMANA' as 'SEMANA' | 'DIA' | 'HORA',
   fecha_fin: '',
   dias_trabajados: 0,
   consumos_materiales: [] as { nombre_material: string, cantidad_usada: number, unidad: string }[]
 });
 
+const esPorHora = ref(false);
+
 // Etiqueta dinámica según tipo
-const labelPeriodo = computed(() => nuevoAvance.value.tipo_periodo === 'DIA' ? 'Día' : 'Semana');
-const labelNPeriodo = computed(() => nuevoAvance.value.tipo_periodo === 'DIA' ? 'N° Día' : 'N° Semana');
+const labelPeriodo = computed(() => {
+  if (nuevoAvance.value.tipo_periodo === 'HORA') return 'Hora';
+  return nuevoAvance.value.tipo_periodo === 'DIA' ? 'Día' : 'Semana';
+});
+
+const labelNPeriodo = computed(() => {
+  if (nuevoAvance.value.tipo_periodo === 'HORA') return 'N° Hora';
+  return nuevoAvance.value.tipo_periodo === 'DIA' ? 'N° Día' : 'N° Semana';
+});
+
+const labelUnidadTrabajo = computed(() => esPorHora.value ? 'Horas Trabajadas' : 'Días Trabajados');
 
 const evidenciaFiles = ref<File[]>([]);
 
@@ -129,12 +140,26 @@ const calcularAvanceAutomatico = () => {
         d.setDate(d.getDate() + span);
         nuevoAvance.value.fecha_fin = toLocalYYYYMMDD(d);
         nuevoAvance.value.dias_trabajados = nuevoAvance.value.semana * 8; // Días acumulados sugeridos
+    } else if (nuevoAvance.value.tipo_periodo === 'HORA') {
+        // Para horas, no movemos la fecha automáticamente de forma tan agresiva,
+        // solemos usar la misma fecha o el siguiente día si es mucho.
+        // Pero por simplificación, asociaremos la fecha según el número de "periodo" si son secuenciales.
+        nuevoAvance.value.fecha_fin = toLocalYYYYMMDD(new Date());
+        nuevoAvance.value.dias_trabajados = nuevoAvance.value.semana; // Tomamos el N° como horas
     } else {
         d.setDate(d.getDate() + Number(nuevoAvance.value.semana)); 
         nuevoAvance.value.fecha_fin = toLocalYYYYMMDD(d);
         nuevoAvance.value.dias_trabajados = nuevoAvance.value.semana; // Días acumulados sugeridos
     }
 }
+
+watch(esPorHora, (val) => {
+  if (val) {
+    nuevoAvance.value.tipo_periodo = 'HORA';
+  } else if (nuevoAvance.value.tipo_periodo === 'HORA') {
+    nuevoAvance.value.tipo_periodo = 'DIA';
+  }
+});
 
 watch(() => nuevoAvance.value.semana, calcularAvanceAutomatico);
 watch(() => nuevoAvance.value.tipo_periodo, calcularAvanceAutomatico, { immediate: true });
@@ -699,16 +724,17 @@ const ejecutarEliminacion = async () => {
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center">
                   <h6 class="fw-bold mb-0">
-                    <span class="badge me-2" :class="av.tipo_periodo === 'DIA' ? 'bg-warning text-dark' : 'bg-info text-dark'">
-                      {{ av.tipo_periodo === 'DIA' ? 'DÍA' : 'SEMANA' }}
+                    <span class="badge me-2" 
+                      :class="av.tipo_periodo === 'DIA' ? 'bg-warning text-dark' : (av.tipo_periodo === 'HORA' ? 'bg-indigo text-white' : 'bg-info text-dark')">
+                      {{ av.tipo_periodo === 'DIA' ? 'DÍA' : (av.tipo_periodo === 'HORA' ? 'HORA' : 'SEMANA') }}
                     </span>
-                    Reporte {{ av.tipo_periodo === 'DIA' ? 'Día' : 'Semana' }} {{ av.semana }}
+                    Reporte {{ av.tipo_periodo === 'DIA' ? 'Día' : (av.tipo_periodo === 'HORA' ? 'Hora' : 'Semana') }} {{ av.semana }}
                   </h6>
                   <span class="badge bg-success fw-bold">{{ av.porcentaje_avance }}% Completado</span>
                 </div>
                 <p class="mb-1 mt-2 text-muted small">
                   <strong>Fecha del Avance:</strong> {{ av.fecha_fin || 'No registrada' }} <span class="mx-2 text-secondary">|</span> 
-                  <strong>Días Trabajados:</strong> {{ av.dias_trabajados || '0' }}
+                  <strong>{{ av.tipo_periodo === 'HORA' ? 'Horas' : 'Días' }} Trabajados:</strong> {{ av.dias_trabajados || '0' }}
                 </p>
                 <p class="mb-1 mt-2 text-muted small">{{ av.observaciones || "Sin observaciones." }}</p>
                 <div v-if="av.rutas_fotografias" class="mt-2 text-success small">
@@ -747,14 +773,21 @@ const ejecutarEliminacion = async () => {
                   <div class="d-flex gap-2">
                     <button type="button" class="btn btn-sm flex-fill fw-bold"
                       :class="nuevoAvance.tipo_periodo === 'SEMANA' ? 'btn-info text-dark' : 'btn-outline-secondary'"
-                      @click="nuevoAvance.tipo_periodo = 'SEMANA'; nuevoAvance.semana = 1">
+                      @click="nuevoAvance.tipo_periodo = 'SEMANA'; nuevoAvance.semana = 1; esPorHora = false">
                       <i class="bi bi-calendar-week me-1"></i> Por Semanas
                     </button>
                     <button type="button" class="btn btn-sm flex-fill fw-bold"
-                      :class="nuevoAvance.tipo_periodo === 'DIA' ? 'btn-warning text-dark' : 'btn-outline-secondary'"
+                      :class="(nuevoAvance.tipo_periodo === 'DIA' || nuevoAvance.tipo_periodo === 'HORA') ? 'btn-warning text-dark' : 'btn-outline-secondary'"
                       @click="nuevoAvance.tipo_periodo = 'DIA'; nuevoAvance.semana = 1">
                       <i class="bi bi-calendar-day me-1"></i> Por Días
                     </button>
+                  </div>
+                  <!-- Checkbox solo si es modo DIA/HORA -->
+                  <div v-if="nuevoAvance.tipo_periodo === 'DIA' || nuevoAvance.tipo_periodo === 'HORA'" class="mt-2 text-end">
+                    <div class="form-check form-switch d-inline-block">
+                      <input class="form-check-input" type="checkbox" id="checkHoras" v-model="esPorHora">
+                      <label class="form-check-label small text-muted cursor-pointer" for="checkHoras">¿Fraccionar por horas?</label>
+                    </div>
                   </div>
                 </div>
                 <div class="mb-3">
@@ -774,8 +807,8 @@ const ejecutarEliminacion = async () => {
                       ref="inputFecha" @keydown.enter.prevent="inputDias?.focus()">
                   </div>
                   <div class="flex-fill">
-                    <label class="form-label small">Días Trabajados</label>
-                    <input type="number" step="0.5" class="form-control" v-model="nuevoAvance.dias_trabajados" min="0" required
+                    <label class="form-label small">{{ labelUnidadTrabajo }}</label>
+                    <input type="number" :step="esPorHora ? '1' : '0.5'" class="form-control" v-model="nuevoAvance.dias_trabajados" min="0" required
                       ref="inputDias" @keydown.enter.prevent="inputObs?.focus()">
                   </div>
                 </div>
