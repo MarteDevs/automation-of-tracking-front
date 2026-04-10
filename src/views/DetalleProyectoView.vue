@@ -289,25 +289,53 @@ const actualizarUnidad = (idx: number) => {
 const materialesDisponibles = computed(() => {
   if (!store.proyectoActivo?.materiales) return [];
   
-  // Calcular cantidad consumida histórica
+  // 1. Agrupar PRESUPUESTO por nombre de material (Pool total)
+  const presupuestoTotalMap = new Map<string, { cantidad: number, unidad: string, categoria: string }>();
+  store.proyectoActivo.materiales.forEach(mat => {
+    const nombreNorm = (mat.descripcion || '').trim();
+    if (!presupuestoTotalMap.has(nombreNorm)) {
+      presupuestoTotalMap.set(nombreNorm, { 
+        cantidad: 0, 
+        unidad: mat.unidad || 'Und',
+        categoria: mat.categoria || ''
+      });
+    }
+    const entry = presupuestoTotalMap.get(nombreNorm)!;
+    entry.cantidad += Number(mat.cantidad) || 0;
+  });
+
+  // 2. Calcular CONSUMO histórico agrupado
   const consumosHistoricos = new Map<string, number>();
   store.proyectoActivo.avances.forEach(av => {
     if (av.consumos) {
       av.consumos.forEach(c => {
-        consumosHistoricos.set(c.nombre_material, (consumosHistoricos.get(c.nombre_material) || 0) + c.cantidad_usada);
+        const nombreNorm = (c.nombre_material || '').trim();
+        const cantVal = Number(c.cantidad_usada) || 0;
+        consumosHistoricos.set(nombreNorm, (consumosHistoricos.get(nombreNorm) || 0) + cantVal);
       });
     }
   });
 
-  // Retornar solo los que tienen saldo positivo, adjuntando el saldo, y que son de categoría MATERIALES
-  return store.proyectoActivo.materiales.map(mat => {
-    const usado = consumosHistoricos.get(mat.descripcion) || 0;
-    const restante = mat.cantidad - usado;
-    return { ...mat, restante };
-  }).filter(mat => {
-    const esMaterial = mat.categoria && mat.categoria.toUpperCase().includes('MATERIALES');
-    return mat.restante > 0 && esMaterial;
-  });
+  // 3. Resultado final: Comparar Pool Total vs Consumo Total
+  const listaProcesada = [];
+  for (const [nombre, data] of presupuestoTotalMap.entries()) {
+    const usado = consumosHistoricos.get(nombre) || 0;
+    const restante = Number((data.cantidad - usado).toFixed(4));
+    
+    const cat = (data.categoria || '').toUpperCase();
+    const esManoDeObra = cat.includes('MANO'); // Excluir Mano de Obra
+    
+    if (restante > 0 && !esManoDeObra) {
+      listaProcesada.push({
+        descripcion: nombre,
+        restante: restante,
+        unidad: data.unidad,
+        categoria: data.categoria
+      });
+    }
+  }
+  
+  return listaProcesada;
 });
 
 const materialesFiltradosPorFila = (index: number) => {
@@ -906,7 +934,7 @@ const ejecutarEliminacion = async () => {
                         required>
                       <ul v-if="cons.showDropdown" class="search-results-list shadow-lg">
                         <li v-for="mat in materialesFiltradosPorFila(index)" 
-                            :key="mat.id" 
+                            :key="mat.descripcion" 
                             class="search-item"
                             @click="seleccionarMaterial(index, mat)">
                           <span class="fw-bold">{{ mat.descripcion }}</span>
