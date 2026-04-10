@@ -103,7 +103,7 @@ const computedFechaFinProyecto = computed(() => {
 });
 
 const computedDiasProyecto = computed(() => {
-   return editUnidadVal.value === 'DIAS' ? editSemanasVal.value : editSemanasVal.value * 7;
+   return editUnidadVal.value === 'DIAS' ? editSemanasVal.value : editSemanasVal.value * 8;
 });
 
 const calcularAvanceAutomatico = () => {
@@ -111,10 +111,10 @@ const calcularAvanceAutomatico = () => {
     if(!d) return;
 
     if (nuevoAvance.value.tipo_periodo === 'SEMANA') {
-        const span = nuevoAvance.value.semana * 7;
+        const span = nuevoAvance.value.semana * 8;
         d.setDate(d.getDate() + span);
         nuevoAvance.value.fecha_fin = toLocalYYYYMMDD(d);
-        nuevoAvance.value.dias_trabajados = 7;
+        nuevoAvance.value.dias_trabajados = 8;
     } else {
         d.setDate(d.getDate() + Number(nuevoAvance.value.semana)); 
         nuevoAvance.value.fecha_fin = toLocalYYYYMMDD(d);
@@ -479,7 +479,7 @@ const ejecutarEliminacion = async () => {
                   <span class="badge bg-success fw-bold">{{ av.porcentaje_avance }}% Completado</span>
                 </div>
                 <p class="mb-1 mt-2 text-muted small">
-                  <strong>Fecha Fin:</strong> {{ av.fecha_fin || 'No registrada' }} <span class="mx-2 text-secondary">|</span> 
+                  <strong>Fecha del Avance:</strong> {{ av.fecha_fin || 'No registrada' }} <span class="mx-2 text-secondary">|</span> 
                   <strong>Días Trabajados:</strong> {{ av.dias_trabajados || '0' }}
                 </p>
                 <p class="mb-1 mt-2 text-muted small">{{ av.observaciones || "Sin observaciones." }}</p>
@@ -533,7 +533,7 @@ const ejecutarEliminacion = async () => {
                 </div>
                 <div class="mb-3 d-flex gap-2">
                   <div class="flex-fill">
-                    <label class="form-label small">Fecha Fin</label>
+                    <label class="form-label small">Fecha del Avance</label>
                     <input type="date" class="form-control" v-model="nuevoAvance.fecha_fin" required>
                   </div>
                   <div class="flex-fill">
@@ -546,8 +546,8 @@ const ejecutarEliminacion = async () => {
                   <textarea class="form-control" rows="2" v-model="nuevoAvance.observaciones"></textarea>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label small">Adjuntar Fotografías (Máx 4, JPG/PNG, hasta 5MB c/u)</label>
-                  <input type="file" id="fotoInput" class="form-control text-muted" accept="image/png, image/jpeg" multiple @change="onFileSelected">
+                  <label class="form-label small">Adjuntar Fotografías (Máx 4, JPG/JPEG/PNG, hasta 5MB c/u)</label>
+                  <input type="file" id="fotoInput" class="form-control text-muted" accept=".png, .jpg, .jpeg, image/png, image/jpeg" multiple @change="onFileSelected">
                   <div v-if="evidenciaFiles.length > 0" class="mt-1 text-info small">
                     <i class="bi bi-paperclip"></i> {{ evidenciaFiles.length }} archivo(s) listo(s) para subir
                   </div>
