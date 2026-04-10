@@ -124,11 +124,11 @@ const calcularAvanceAutomatico = () => {
         const span = nuevoAvance.value.semana * 8;
         d.setDate(d.getDate() + span);
         nuevoAvance.value.fecha_fin = toLocalYYYYMMDD(d);
-        nuevoAvance.value.dias_trabajados = 8;
+        nuevoAvance.value.dias_trabajados = nuevoAvance.value.semana * 8; // Días acumulados sugeridos
     } else {
         d.setDate(d.getDate() + Number(nuevoAvance.value.semana)); 
         nuevoAvance.value.fecha_fin = toLocalYYYYMMDD(d);
-        nuevoAvance.value.dias_trabajados = 1;
+        nuevoAvance.value.dias_trabajados = nuevoAvance.value.semana; // Días acumulados sugeridos
     }
 }
 
@@ -167,12 +167,14 @@ const totalMateriales = computed(() =>
 const totalGeneral = computed(() => totalManoObra.value + totalMateriales.value);
 
 // Nuevos cálculos para el resumen financiero "Image 1"
-const utilidadPorc = computed(() => (store.proyectoActivo?.utilidad_porcentaje ?? 10) / 100);
-const otrosPorc = computed(() => (store.proyectoActivo?.otros_porcentaje ?? 5) / 100);
+// Forzado por regla de negocio a 15% Utilidad y 5% Otros para empatar con PDF original
+const utilidadPorc = computed(() => 0.15);
+const otrosPorc = computed(() => 0.05);
 
 const utilidadMoneda = computed(() => totalGeneral.value * utilidadPorc.value);
 const otrosMoneda = computed(() => totalGeneral.value * otrosPorc.value);
-const subtotalConIndirectos = computed(() => totalGeneral.value + utilidadMoneda.value + otrosMoneda.value);
+const costosIndirectosNum = computed(() => utilidadMoneda.value + otrosMoneda.value);
+const subtotalConIndirectos = computed(() => totalGeneral.value + costosIndirectosNum.value);
 const igvCalculado = computed(() => subtotalConIndirectos.value * 0.18);
 const presupuestoTotalFinal = computed(() => subtotalConIndirectos.value + igvCalculado.value);
 
@@ -459,12 +461,8 @@ const ejecutarEliminacion = async () => {
                     <td class="p-3 text-end fw-bold">{{ formatCurrency(totalGeneral) }}</td>
                   </tr>
                   <tr class="border-bottom border-secondary border-opacity-25">
-                    <td class="p-3">UTILIDAD ({{ (utilidadPorc * 100).toFixed(1) }}%)</td>
-                    <td class="p-3 text-end">{{ formatCurrency(utilidadMoneda) }}</td>
-                  </tr>
-                  <tr class="border-bottom border-secondary border-opacity-25">
-                    <td class="p-3">OTROS ({{ (otrosPorc * 100).toFixed(1) }}%)</td>
-                    <td class="p-3 text-end">{{ formatCurrency(otrosMoneda) }}</td>
+                    <td class="p-3">COSTOS INDIRECTOS</td>
+                    <td class="p-3 text-end">{{ formatCurrency(costosIndirectosNum) }}</td>
                   </tr>
                   <tr class="border-bottom border-primary border-opacity-50">
                     <td class="p-3 fw-bold bg-dark bg-opacity-25">SUBTOTAL</td>
