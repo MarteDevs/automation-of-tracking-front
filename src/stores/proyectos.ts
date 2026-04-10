@@ -121,10 +121,21 @@ export const useProyectosStore = defineStore('proyectos', {
         const response = await api.get(`/proyectos/${proyectoId}/avances/${avanceId}/descargar-pdf`, {
           responseType: 'blob'
         });
+        
+        // Generar nombre dinámico basado en el proyecto activo
+        let filename = 'Reporte_Avance.pdf';
+        if (this.proyectoActivo) {
+          const nomLimpio = this.proyectoActivo.nombre_proyecto.replace(/[^\w\s-]/gi, '').trim().replace(/\s+/g, '_');
+          const avance = this.proyectoActivo.avances.find(a => a.id === avanceId);
+          const label = (avance?.tipo_periodo === 'SEMANA') ? 'Semana' : 'Dia';
+          const num = avance?.semana || 'X';
+          filename = `${nomLimpio}_${label}_${num}.pdf`;
+        }
+
         const url = window.URL.createObjectURL(new Blob([response.data]));
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', `Avance_Reporte.pdf`);
+        link.setAttribute('download', filename);
         document.body.appendChild(link);
         link.click();
         link.parentNode?.removeChild(link);
