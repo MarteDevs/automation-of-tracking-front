@@ -167,8 +167,8 @@ const totalMateriales = computed(() =>
 const totalGeneral = computed(() => totalManoObra.value + totalMateriales.value);
 
 // Nuevos cálculos para el resumen financiero "Image 1"
-// Forzado por regla de negocio a 15% Utilidad y 5% Otros para empatar con PDF original
-const utilidadPorc = computed(() => 0.15);
+// Forzado por regla de negocio a 10% Utilidad y 5% Otros (15% total)
+const utilidadPorc = computed(() => 0.10);
 const otrosPorc = computed(() => 0.05);
 
 const utilidadMoneda = computed(() => totalGeneral.value * utilidadPorc.value);
