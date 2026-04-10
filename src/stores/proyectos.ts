@@ -43,6 +43,7 @@ export interface AvanceSemanal {
   dias_trabajados?: number;
   consumos_materiales?: ConsumoMaterial[];
   consumos?: ConsumoMaterial[];
+  ruta_pdf?: string;
 }
 
 export interface Proyecto {
@@ -57,6 +58,7 @@ export interface Proyecto {
   mano_de_obra: ManoObra[];
   materiales: MaterialEquipo[];
   avances: AvanceSemanal[];
+  ruta_pdf?: string;
 }
 
 export const useProyectosStore = defineStore('proyectos', {

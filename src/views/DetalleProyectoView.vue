@@ -272,7 +272,9 @@ const descargarPDF = async (avanceId: number) => {
   generandoPDF.value = true;
   try {
     await store.descargarReportePdf(pId, avanceId);
-    showToast('✔ Reporte PDF generado y descargado.', 'success');
+    showToast('✔ Reporte PDF procesado correctamente.', 'success');
+    // Actualizar datos para que el botón cambie a "Descargar" si era "Generar"
+    await store.fetchProyectoActivo(pId);
   } catch {
     showToast('Error al generar el PDF.', 'danger');
   } finally {
@@ -286,7 +288,9 @@ const descargarBalanceGlobal = async () => {
   generandoPDF.value = true;
   try {
     await store.descargarBalanceGlobalPdf(pId);
-    showToast('✔ Balance Global PDF generado y descargado.', 'success');
+    showToast('✔ Balance Global procesado correctamente.', 'success');
+    // Actualizar datos
+    await store.fetchProyectoActivo(pId);
   } catch {
     showToast('Error al generar el Balance Global.', 'danger');
   } finally {
@@ -401,12 +405,16 @@ const ejecutarEliminacion = async () => {
         <button 
           @click="descargarBalanceGlobal" 
           class="btn fw-semibold align-items-center d-flex gap-2 text-white"
-          style="background: linear-gradient(145deg, #1A2235, #111827); border: 1px solid #374151"
+          :style="store.proyectoActivo.ruta_pdf 
+            ? 'background: linear-gradient(145deg, #059669, #064e3b); border: 1px solid #059669' 
+            : 'background: linear-gradient(145deg, #1A2235, #111827); border: 1px solid #374151'"
           :disabled="generandoPDF"
         >
           <i v-if="generandoPDF" class="spinner-border spinner-border-sm text-secondary"></i>
-          <i v-else class="bi bi-file-earmark-pdf-fill text-danger"></i> 
-          Generar Balance Acumulado
+          <template v-else>
+            <i class="bi bi-file-earmark-pdf-fill" :class="store.proyectoActivo.ruta_pdf ? 'text-white' : 'text-danger'"></i> 
+            {{ store.proyectoActivo.ruta_pdf ? 'Descargar Balance Acumulado' : 'Generar Balance Acumulado' }}
+          </template>
         </button>
         <div class="text-end glass-panel px-4 py-2 bg-primary bg-opacity-10 border-primary">
           <span class="d-block small text-muted">Costo Directo Total</span>
@@ -621,10 +629,12 @@ const ejecutarEliminacion = async () => {
                     <i class="bi bi-trash3"></i>
                   </button>
                   <button @click="descargarPDF(av.id!)" :disabled="generandoPDF"
-                    class="btn btn-sm btn-outline-light d-inline-flex align-items-center">
+                    class="btn btn-sm d-inline-flex align-items-center fw-bold transition-all"
+                    :class="av.ruta_pdf ? 'btn-success bg-opacity-75 text-white' : 'btn-outline-light'"
+                  >
                     <span v-if="generandoPDF" class="spinner-border spinner-border-sm me-2"></span>
-                    <i v-else class="bi bi-file-earmark-pdf-fill text-danger fs-5 me-2"></i>
-                    {{ generandoPDF ? 'Generando...' : 'Generar Reporte PDF' }}
+                    <i v-else class="bi fs-5 me-2" :class="av.ruta_pdf ? 'bi-cloud-download-fill text-white' : 'bi-file-earmark-pdf-fill text-danger'"></i>
+                    {{ generandoPDF ? 'Generando...' : (av.ruta_pdf ? 'Descargar Reporte PDF' : 'Generar Reporte PDF') }}
                   </button>
                 </div>
               </div>
