@@ -279,6 +279,20 @@ const descargarPDF = async (avanceId: number) => {
     generandoPDF.value = false;
   }
 };
+
+const descargarBalanceGlobal = async () => {
+  const pId = Number(route.params.id);
+  if (!pId) return;
+  generandoPDF.value = true;
+  try {
+    await store.descargarBalanceGlobalPdf(pId);
+    showToast('✔ Balance Global PDF generado y descargado.', 'success');
+  } catch {
+    showToast('Error al generar el Balance Global.', 'danger');
+  } finally {
+    generandoPDF.value = false;
+  }
+};
 // ── Tab activo controlado por Vue (con feedback visual animado) ──
 const activeTab = ref<'rrhh' | 'mats' | 'avance'>('rrhh');
 
@@ -378,14 +392,26 @@ const ejecutarEliminacion = async () => {
 
   <div v-else-if="store.proyectoActivo" class="glass-panel p-4 pb-5">
     <!-- Header -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
       <div>
         <h1 class="fw-bold mb-1">{{ store.proyectoActivo.nombre_proyecto }}</h1>
         <p class="text-muted"><i class="bi bi-calendar3"></i> Fecha Presupuestada: {{ store.proyectoActivo.fecha }}</p>
       </div>
-      <div class="text-end glass-panel px-4 py-2 bg-primary bg-opacity-10 border-primary">
-        <span class="d-block small text-muted">Costo Directo Total</span>
-        <h3 class="mb-0 fw-bold text-primary">{{ formatCurrency(store.proyectoActivo.costo_total) }}</h3>
+      <div class="d-flex gap-3 align-items-center flex-wrap">
+        <button 
+          @click="descargarBalanceGlobal" 
+          class="btn fw-semibold align-items-center d-flex gap-2 text-white"
+          style="background: linear-gradient(145deg, #1A2235, #111827); border: 1px solid #374151"
+          :disabled="generandoPDF"
+        >
+          <i v-if="generandoPDF" class="spinner-border spinner-border-sm text-secondary"></i>
+          <i v-else class="bi bi-file-earmark-pdf-fill text-danger"></i> 
+          Generar Balance Acumulado
+        </button>
+        <div class="text-end glass-panel px-4 py-2 bg-primary bg-opacity-10 border-primary">
+          <span class="d-block small text-muted">Costo Directo Total</span>
+          <h3 class="mb-0 fw-bold text-primary">{{ formatCurrency(store.proyectoActivo.costo_total) }}</h3>
+        </div>
       </div>
     </div>
 

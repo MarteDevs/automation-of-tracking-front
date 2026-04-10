@@ -155,6 +155,25 @@ export const useProyectosStore = defineStore('proyectos', {
         throw err;
       }
     },
+    async descargarBalanceGlobalPdf(proyectoId: number) {
+      this.error = null;
+      try {
+        const response = await api.get(`/proyectos/${proyectoId}/balance-pdf`, { responseType: 'blob' });
+        const nomLimpio = this.proyectoActivo?.nombre_proyecto.replace(/[^A-Za-z0-9_-]/g, "_") || 'Proyecto';
+        const filename = `Balance_Global_${nomLimpio}.pdf`;
+
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode?.removeChild(link);
+      } catch (err: any) {
+        this.error = 'Falló la descarga del Balance Global.';
+        throw err;
+      }
+    },
     async uploadImagenEvidencia(files: File[]) {
       this.error = null;
       const formData = new FormData();
