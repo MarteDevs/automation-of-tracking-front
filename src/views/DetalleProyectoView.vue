@@ -898,7 +898,7 @@ const ejecutarEliminacion = async () => {
                   <div v-for="(cons, index) in nuevoAvance.consumos_materiales" :key="index" class="d-flex gap-2 mb-2">
                     <div class="search-dropdown-container">
                       <input type="text" 
-                        class="form-control form-control-sm bg-dark text-white border-secondary"
+                        class="form-control form-control-sm bg-dark text-white border-secondary w-100"
                         placeholder="Buscar o seleccionar..."
                         v-model="cons.busqueda"
                         @focus="cons.showDropdown = true"
@@ -918,10 +918,10 @@ const ejecutarEliminacion = async () => {
                       </ul>
                     </div>
                     <input type="number" step="0.01" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" 
-                      style="flex: 1;" placeholder="Cant." v-model="cons.cantidad_usada" 
+                      style="width: 70px;" placeholder="Cant." v-model="cons.cantidad_usada" 
                       :max="obtenerRestanteNumerico(cons.nombre_material)" required>
-                    <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" style="flex: 1;" placeholder="Und." v-model="cons.unidad" readonly>
-                    <input type="text" class="form-control form-control-sm bg-dark text-info border-secondary text-center px-1" style="flex: 1.5;" :value="obtenerCantidadRestante(cons.nombre_material)" readonly title="Cantidad restante disponible" placeholder="Tope">
+                    <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" style="width: 55px;" placeholder="Und." v-model="cons.unidad" readonly title="Unidad">
+                    <input type="text" class="form-control form-control-sm bg-dark text-info border-secondary text-center px-1" style="width: 90px;" :value="obtenerCantidadRestante(cons.nombre_material)" readonly title="Cantidad restante disponible" placeholder="Tope">
                     <button type="button" class="btn btn-sm btn-outline-danger px-2" @click="nuevoAvance.consumos_materiales.splice(index, 1)"><i class="bi bi-x"></i></button>
                   </div>
                   <div v-if="nuevoAvance.consumos_materiales.length === 0" class="small text-muted fst-italic"><i class="bi bi-info-circle me-1"></i> Opcional: Registre los insumos consumidos.</div>
