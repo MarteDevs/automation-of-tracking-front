@@ -323,9 +323,9 @@ const materialesDisponibles = computed(() => {
     const restante = Number((data.cantidad - usado).toFixed(4));
     
     const cat = (data.categoria || '').toUpperCase();
-    const esManoDeObra = cat.includes('MANO'); // Excluir Mano de Obra
+    const esMaterial = cat.includes('MATERIALES'); // Solo categoría Materiales
     
-    if (restante > 0 && !esManoDeObra) {
+    if (restante > 0 && esMaterial) {
       listaProcesada.push({
         descripcion: nombre,
         restante: restante,
