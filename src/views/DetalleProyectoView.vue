@@ -224,6 +224,36 @@ const actualizarUnidad = (idx: number) => {
   if (mat) cons.unidad = mat.unidad || 'Und';
 };
 
+const materialesDisponibles = computed(() => {
+  if (!store.proyectoActivo?.materiales) return [];
+  
+  // Calcular cantidad consumida histórica
+  const consumosHistoricos = new Map<string, number>();
+  store.proyectoActivo.avances.forEach(av => {
+    if (av.consumos) {
+      av.consumos.forEach(c => {
+        consumosHistoricos.set(c.nombre_material, (consumosHistoricos.get(c.nombre_material) || 0) + c.cantidad_usada);
+      });
+    }
+  });
+
+  // Retornar solo los que tienen saldo positivo, adjuntando el saldo, y que son de categoría MATERIALES
+  return store.proyectoActivo.materiales.map(mat => {
+    const usado = consumosHistoricos.get(mat.descripcion) || 0;
+    const restante = mat.cantidad - usado;
+    return { ...mat, restante };
+  }).filter(mat => {
+    const esMaterial = mat.categoria && mat.categoria.toUpperCase().includes('MATERIALES');
+    return mat.restante > 0 && esMaterial;
+  });
+});
+
+const obtenerCantidadRestante = (nombre: string) => {
+  if (!nombre) return '';
+  const mat = materialesDisponibles.value.find(m => m.descripcion === nombre);
+  return mat ? `Disp: ${mat.restante}` : '';
+};
+
 const guardarSemanasEstimadas = async () => {
   const pId = Number(route.params.id);
   if (pId && editSemanasVal.value >= 1) {
@@ -640,14 +670,15 @@ const ejecutarEliminacion = async () => {
                     </button>
                   </label>
                   <div v-for="(cons, index) in nuevoAvance.consumos_materiales" :key="index" class="d-flex gap-2 mb-2">
-                    <select v-model="cons.nombre_material" @change="actualizarUnidad(index)" class="form-select form-select-sm bg-dark text-white border-secondary" style="flex: 2;" required>
+                    <select v-model="cons.nombre_material" @change="actualizarUnidad(index)" class="form-select form-select-sm bg-dark text-white border-secondary" style="flex: 3;" required>
                       <option value="" disabled>Insumo...</option>
-                      <option v-for="mat in store.proyectoActivo.materiales" :key="mat.id" :value="mat.descripcion">
+                      <option v-for="mat in materialesDisponibles" :key="mat.id" :value="mat.descripcion">
                         {{ mat.descripcion }}
                       </option>
                     </select>
                     <input type="number" step="0.01" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" style="flex: 1;" placeholder="Cant." v-model="cons.cantidad_usada" required>
-                    <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" style="flex: 1;" placeholder="Und." v-model="cons.unidad">
+                    <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" style="flex: 1;" placeholder="Und." v-model="cons.unidad" readonly>
+                    <input type="text" class="form-control form-control-sm bg-dark text-info border-secondary text-center px-1" style="flex: 1.5;" :value="obtenerCantidadRestante(cons.nombre_material)" readonly title="Cantidad restante disponible" placeholder="Tope">
                     <button type="button" class="btn btn-sm btn-outline-danger px-2" @click="nuevoAvance.consumos_materiales.splice(index, 1)"><i class="bi bi-x"></i></button>
                   </div>
                   <div v-if="nuevoAvance.consumos_materiales.length === 0" class="small text-muted fst-italic"><i class="bi bi-info-circle me-1"></i> Opcional: Registre los insumos consumidos.</div>
