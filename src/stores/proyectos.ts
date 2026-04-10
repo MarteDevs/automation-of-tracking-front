@@ -93,6 +93,7 @@ export const useProyectosStore = defineStore('proyectos', {
       try {
         const response = await api.post<Proyecto>('/procesar-presupuesto/', formData, {
           headers: { 'Content-Type': 'multipart/form-data' },
+          timeout: 180000, 
         });
         this.proyectos.push(response.data);
         return response.data;
