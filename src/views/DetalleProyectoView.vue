@@ -14,7 +14,13 @@ const nuevoAvance = ref({
   tipo_periodo: 'SEMANA' as 'SEMANA' | 'DIA' | 'HORA',
   fecha_fin: '',
   dias_trabajados: 0,
-  consumos_materiales: [] as { nombre_material: string, cantidad_usada: number, unidad: string }[]
+  consumos_materiales: [] as { 
+    nombre_material: string, 
+    cantidad_usada: number | null, 
+    unidad: string, 
+    busqueda?: string, 
+    showDropdown?: boolean 
+  }[]
 });
 
 const esPorHora = ref(false);
@@ -218,7 +224,17 @@ const guardarAvance = async () => {
     showToast(`✔ ${evidenciaFiles.value.length} imagen(es) guardada(s) correctamente.`, 'success');
   }
 
-  await store.agregarAvance(pId, nuevoAvance.value);
+  // Limpiar datos para el servidor (quitar campos de UI y manejar nulls)
+  const datosParaEnviar = {
+    ...nuevoAvance.value,
+    consumos_materiales: nuevoAvance.value.consumos_materiales.map(c => ({
+      nombre_material: c.nombre_material,
+      cantidad_usada: c.cantidad_usada || 0,
+      unidad: c.unidad
+    }))
+  };
+
+  await store.agregarAvance(pId, datosParaEnviar as any);
   showToast(`✔ Reporte de ${labelPeriodo.value} ${nuevoAvance.value.semana} registrado con éxito.`, 'success');
 
   // Limpieza Form: avanza al siguiente período
@@ -241,8 +257,26 @@ const agregarConsumoNuevo = () => {
   nuevoAvance.value.consumos_materiales.push({
     nombre_material: '',
     cantidad_usada: null as any,
-    unidad: ''
+    unidad: '',
+    busqueda: '',
+    showDropdown: false
   });
+};
+
+const seleccionarMaterial = (index: number, mat: any) => {
+  const cons = nuevoAvance.value.consumos_materiales[index];
+  if (!cons) return;
+  cons.nombre_material = mat.descripcion;
+  cons.unidad = mat.unidad || 'Und';
+  cons.busqueda = mat.descripcion;
+  cons.showDropdown = false;
+};
+
+const ocultarDropdown = (index: number) => {
+  setTimeout(() => {
+    const cons = nuevoAvance.value.consumos_materiales[index];
+    if (cons) cons.showDropdown = false;
+  }, 200);
 };
 
 const actualizarUnidad = (idx: number) => {
@@ -277,13 +311,24 @@ const materialesDisponibles = computed(() => {
 });
 
 const materialesFiltradosPorFila = (index: number) => {
-  // Lista de nombres seleccionados en OTRAS filas
+  const cons = nuevoAvance.value.consumos_materiales[index];
+  if (!cons) return [];
+
+  // 1. Filtrar los que ya están en OTRAS filas
   const seleccionadosEnOtros = nuevoAvance.value.consumos_materiales
     .filter((_, idx) => idx !== index)
     .map(c => c.nombre_material)
     .filter(name => !!name);
 
-  return materialesDisponibles.value.filter(mat => !seleccionadosEnOtros.includes(mat.descripcion));
+  let base = materialesDisponibles.value.filter(mat => !seleccionadosEnOtros.includes(mat.descripcion));
+
+  // 2. Filtrar por la búsqueda de esta fila
+  if (cons.busqueda && cons.busqueda.trim() !== '') {
+    const query = cons.busqueda.toLowerCase();
+    base = base.filter(mat => mat.descripcion.toLowerCase().includes(query));
+  }
+
+  return base;
 };
 
 const obtenerCantidadRestante = (nombre: string) => {
@@ -851,12 +896,27 @@ const ejecutarEliminacion = async () => {
                     </button>
                   </label>
                   <div v-for="(cons, index) in nuevoAvance.consumos_materiales" :key="index" class="d-flex gap-2 mb-2">
-                    <select v-model="cons.nombre_material" @change="actualizarUnidad(index)" class="form-select form-select-sm bg-dark text-white border-secondary" style="flex: 3;" required>
-                      <option value="" disabled>Insumo...</option>
-                      <option v-for="mat in materialesFiltradosPorFila(index)" :key="mat.id" :value="mat.descripcion">
-                        {{ mat.descripcion }}
-                      </option>
-                    </select>
+                    <div class="search-dropdown-container">
+                      <input type="text" 
+                        class="form-control form-control-sm bg-dark text-white border-secondary"
+                        placeholder="Buscar o seleccionar..."
+                        v-model="cons.busqueda"
+                        @focus="cons.showDropdown = true"
+                        @blur="ocultarDropdown(index)"
+                        required>
+                      <ul v-if="cons.showDropdown" class="search-results-list shadow-lg">
+                        <li v-for="mat in materialesFiltradosPorFila(index)" 
+                            :key="mat.id" 
+                            class="search-item"
+                            @click="seleccionarMaterial(index, mat)">
+                          <span class="fw-bold">{{ mat.descripcion }}</span>
+                          <span class="stock-tag ms-2 fw-normal">({{ mat.unidad }} - Disp: {{ mat.restante }})</span>
+                        </li>
+                        <li v-if="materialesFiltradosPorFila(index).length === 0" class="search-item text-muted text-center py-3">
+                          <i class="bi bi-exclamation-circle me-1"></i> Sin resultados o stock agotado
+                        </li>
+                      </ul>
+                    </div>
                     <input type="number" step="0.01" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" 
                       style="flex: 1;" placeholder="Cant." v-model="cons.cantidad_usada" 
                       :max="obtenerRestanteNumerico(cons.nombre_material)" required>
@@ -1034,5 +1094,62 @@ const ejecutarEliminacion = async () => {
 .modal-fade-enter-from,
 .modal-fade-leave-to {
   opacity: 0;
+}
+
+/* ── Searchable Dropdown ── */
+.search-dropdown-container {
+  position: relative;
+  flex: 3;
+}
+.search-results-list {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background: #1a202c;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  margin-top: 4px;
+  max-height: 250px;
+  overflow-y: auto;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+  padding: 0;
+  list-style: none;
+}
+.search-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.2s ease;
+  font-size: 0.85rem;
+  color: #e2e8f0;
+}
+.search-item:hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: #fff;
+}
+.search-item:last-child {
+  border-bottom: none;
+}
+.search-item .stock-tag {
+  font-size: 0.7rem;
+  opacity: 0.7;
+  margin-left: 8px;
+}
+
+/* Custom Scrollbar for Dropdown */
+.search-results-list::-webkit-scrollbar {
+  width: 6px;
+}
+.search-results-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+}
+.search-results-list::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+}
+.search-results-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 </style>
