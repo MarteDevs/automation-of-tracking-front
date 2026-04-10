@@ -38,6 +38,15 @@ const showToast = (message: string, type: ToastType = 'success') => {
 
 const generandoPDF = ref(false);
 
+// Refs para navegación con Enter
+const inputSemana = ref<HTMLInputElement | null>(null);
+const inputAvance = ref<HTMLInputElement | null>(null);
+const inputFecha = ref<HTMLInputElement | null>(null);
+const inputDias = ref<HTMLInputElement | null>(null);
+const inputObs = ref<HTMLTextAreaElement | null>(null);
+const fotoInput = ref<HTMLInputElement | null>(null);
+const submitBtn = ref<HTMLButtonElement | null>(null);
+
 const onFileSelected = (e: Event) => {
   const target = e.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
@@ -66,6 +75,7 @@ const onFileSelected = (e: Event) => {
 
 const editSemanasVal = ref(1);
 const editUnidadVal = ref('SEMANAS');
+const editFechaVal = ref('');
 
 const checkValidDateStr = (dateStr: string) => {
   if (!dateStr) return null;
@@ -132,6 +142,11 @@ onMounted(async () => {
     if (store.proyectoActivo) {
       editSemanasVal.value = store.proyectoActivo.semanas_estimadas || 1;
       editUnidadVal.value = store.proyectoActivo.tipo_duracion || 'SEMANAS';
+      
+      // Convertir fecha BD (DD/MM/YYYY) a ISO (YYYY-MM-DD) para el input date
+      const d = checkValidDateStr(store.proyectoActivo.fecha);
+      if (d) editFechaVal.value = toLocalYYYYMMDD(d);
+      
       calcularAvanceAutomatico();
     }
   }
@@ -193,7 +208,11 @@ const guardarAvance = async () => {
 const guardarSemanasEstimadas = async () => {
   const pId = Number(route.params.id);
   if (pId && editSemanasVal.value >= 1) {
-    await store.actualizarConfiguracion(pId, editSemanasVal.value, editUnidadVal.value);
+    // Convertir de YYYY-MM-DD a DD/MM/YYYY para la BD
+    const d = new Date(editFechaVal.value + 'T12:00:00'); // T12 para evitar temas de zona horaria
+    const fechaBD = d.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    
+    await store.actualizarConfiguracion(pId, editSemanasVal.value, editUnidadVal.value, fechaBD);
     showToast(`✔ Configuración guardada correctamente.`, 'success');
   }
 };
@@ -474,12 +493,13 @@ const ejecutarEliminacion = async () => {
               <div>
                 <h6 class="mb-1 text-info fw-bold"><i class="bi bi-graph-up-arrow me-1"></i> Configuración de Curva S</h6>
                 <p class="mb-0 small text-muted">Duración programada total para calcular la curva logística matemática y su asimetría.</p>
-                <div class="mt-2 text-muted small">
-                  <i class="bi bi-calendar-check text-info"></i> Inicio: <strong class="text-white">{{ store.proyectoActivo.fecha }}</strong> 
+                <div class="mt-2 text-muted small d-flex flex-wrap align-items-center gap-2">
+                  <span><i class="bi bi-calendar-check text-info"></i> Inicio:</span>
+                  <input type="date" v-model="editFechaVal" class="form-control form-control-sm border-info bg-dark text-white p-0 px-1" style="width: 130px; height: 26px; font-size: 0.8rem;">
+                  <span class="mx-1">|</span>
+                  <span>Fin Estimado: <strong class="text-white">{{ computedFechaFinProyecto }}</strong></span>
                   <span class="mx-2">|</span>
-                  Fin Estimado: <strong class="text-white">{{ computedFechaFinProyecto }}</strong>
-                  <span class="mx-2">|</span>
-                  Tot. Jornadas: <strong class="text-white">{{ computedDiasProyecto }}</strong>
+                  <span>Tot. Jornadas: <strong class="text-white">{{ computedDiasProyecto }}</strong></span>
                 </div>
               </div>
               <div class="d-flex align-items-center mt-3 mt-md-0 gap-2 ms-md-4">
@@ -556,34 +576,40 @@ const ejecutarEliminacion = async () => {
                 </div>
                 <div class="mb-3">
                   <label class="form-label small">{{ labelNPeriodo }}</label>
-                  <input type="number" class="form-control" v-model="nuevoAvance.semana" required>
+                  <input type="number" class="form-control" v-model="nuevoAvance.semana" required
+                    ref="inputSemana" @keydown.enter.prevent="inputAvance?.focus()">
                 </div>
                 <div class="mb-3">
                   <label class="form-label small">% de Avance Físico Actual</label>
-                  <input type="number" class="form-control" v-model="nuevoAvance.porcentaje_avance" min="0" max="100" required>
+                  <input type="number" class="form-control" v-model="nuevoAvance.porcentaje_avance" min="0" max="100" required
+                    ref="inputAvance" @keydown.enter.prevent="inputFecha?.focus()">
                 </div>
                 <div class="mb-3 d-flex gap-2">
                   <div class="flex-fill">
                     <label class="form-label small">Fecha del Avance</label>
-                    <input type="date" class="form-control" v-model="nuevoAvance.fecha_fin" required>
+                    <input type="date" class="form-control" v-model="nuevoAvance.fecha_fin" required
+                      ref="inputFecha" @keydown.enter.prevent="inputDias?.focus()">
                   </div>
                   <div class="flex-fill">
                     <label class="form-label small">Días Trabajados</label>
-                    <input type="number" step="0.5" class="form-control" v-model="nuevoAvance.dias_trabajados" min="0" required>
+                    <input type="number" step="0.5" class="form-control" v-model="nuevoAvance.dias_trabajados" min="0" required
+                      ref="inputDias" @keydown.enter.prevent="inputObs?.focus()">
                   </div>
                 </div>
                 <div class="mb-3">
                   <label class="form-label small">Observaciones Técnicas</label>
-                  <textarea class="form-control" rows="2" v-model="nuevoAvance.observaciones"></textarea>
+                  <textarea class="form-control" rows="2" v-model="nuevoAvance.observaciones"
+                    ref="inputObs" @keydown.enter.prevent="fotoInput?.focus()"></textarea>
                 </div>
                 <div class="mb-3">
                   <label class="form-label small">Adjuntar Fotografías (Máx 4, JPG/JPEG/PNG, hasta 5MB c/u)</label>
-                  <input type="file" id="fotoInput" class="form-control text-muted" accept=".png, .jpg, .jpeg, image/png, image/jpeg" multiple @change="onFileSelected">
+                  <input type="file" id="fotoInput" ref="fotoInput" class="form-control text-muted" accept=".png, .jpg, .jpeg, image/png, image/jpeg" multiple @change="onFileSelected"
+                    @keydown.enter.prevent="submitBtn?.focus()">
                   <div v-if="evidenciaFiles.length > 0" class="mt-1 text-info small">
                     <i class="bi bi-paperclip"></i> {{ evidenciaFiles.length }} archivo(s) listo(s) para subir
                   </div>
                 </div>
-                <button type="submit" class="btn btn-success w-100" :disabled="store.loading">
+                <button type="submit" ref="submitBtn" class="btn btn-success w-100" :disabled="store.loading">
                   <span v-if="store.loading" class="spinner-border spinner-border-sm me-2"></span>
                   <i v-else class="bi bi-floppy me-1"></i>
                   {{ store.loading ? 'Guardando...' : 'Firmar Avance y Guardar' }}

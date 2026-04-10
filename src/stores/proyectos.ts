@@ -158,16 +158,18 @@ export const useProyectosStore = defineStore('proyectos', {
          throw err;
       }
     },
-    async actualizarConfiguracion(proyectoId: number, semanas: number, tipo_duracion: string) {
+    async actualizarConfiguracion(proyectoId: number, semanas: number, tipo_duracion: string, fecha: string) {
       if (semanas < 1) return;
       try {
         const response = await api.put<Proyecto>(`/proyectos/${proyectoId}/configuracion`, {
           semanas_estimadas: semanas,
-          tipo_duracion: tipo_duracion
+          tipo_duracion: tipo_duracion,
+          fecha: fecha
         });
         if (this.proyectoActivo && this.proyectoActivo.id === proyectoId) {
           this.proyectoActivo.semanas_estimadas = response.data.semanas_estimadas;
           this.proyectoActivo.tipo_duracion = response.data.tipo_duracion;
+          this.proyectoActivo.fecha = response.data.fecha;
         }
         return response.data;
       } catch (err: any) {
