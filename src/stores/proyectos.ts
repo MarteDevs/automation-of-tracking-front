@@ -24,6 +24,14 @@ export interface MaterialEquipo {
   total: number;
 }
 
+export interface ConsumoMaterial {
+  id?: number;
+  avance_id?: number;
+  nombre_material: string;
+  cantidad_usada: number;
+  unidad?: string;
+}
+
 export interface AvanceSemanal {
   id?: number;
   semana: number;
@@ -33,6 +41,8 @@ export interface AvanceSemanal {
   tipo_periodo: string; // 'SEMANA' | 'DIA'
   fecha_fin?: string;
   dias_trabajados?: number;
+  consumos_materiales?: ConsumoMaterial[];
+  consumos?: ConsumoMaterial[];
 }
 
 export interface Proyecto {

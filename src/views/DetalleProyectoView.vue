@@ -13,7 +13,8 @@ const nuevoAvance = ref({
   rutas_fotografias: '',
   tipo_periodo: 'SEMANA' as 'SEMANA' | 'DIA',
   fecha_fin: '',
-  dias_trabajados: 0
+  dias_trabajados: 0,
+  consumos_materiales: [] as { nombre_material: string, cantidad_usada: number, unidad: string }[]
 });
 
 // Etiqueta dinámica según tipo
@@ -200,11 +201,27 @@ const guardarAvance = async () => {
     rutas_fotografias: '',
     tipo_periodo: nuevoAvance.value.tipo_periodo, // Mantener el tipo elegido
     fecha_fin: '',
-    dias_trabajados: 0
+    dias_trabajados: nuevoAvance.value.dias_trabajados, // mantener sugerencia o se recalculará
+    consumos_materiales: []
   };
   evidenciaFiles.value = [];
   const inputEl = document.getElementById('fotoInput') as HTMLInputElement;
   if (inputEl) inputEl.value = '';
+};
+
+const agregarConsumoNuevo = () => {
+  nuevoAvance.value.consumos_materiales.push({
+    nombre_material: '',
+    cantidad_usada: 1,
+    unidad: ''
+  });
+};
+
+const actualizarUnidad = (idx: number) => {
+  const cons = nuevoAvance.value.consumos_materiales[idx];
+  if (!cons) return;
+  const mat = store.proyectoActivo?.materiales.find(m => m.descripcion === cons.nombre_material);
+  if (mat) cons.unidad = mat.unidad || 'Und';
 };
 
 const guardarSemanasEstimadas = async () => {
@@ -538,6 +555,10 @@ const ejecutarEliminacion = async () => {
                   <i class="bi bi-image-fill me-1"></i>
                   {{ av.rutas_fotografias.split(',').length }} fotografía(s) adjuntada(s)
                 </div>
+                <div v-if="av.consumos && av.consumos.length > 0" class="mt-2 small text-warning">
+                  <i class="bi bi-box-seam me-1"></i>
+                  <strong>{{ av.consumos.length }}</strong> material(es) registrado(s) en este uso.
+                </div>
 
                 <div class="mt-3 d-flex justify-content-end align-items-center gap-2 border-top border-secondary pt-2">
                   <button @click="eliminarAvance(av.id!)" class="btn btn-sm btn-outline-danger" title="Eliminar Seguimiento">
@@ -609,6 +630,29 @@ const ejecutarEliminacion = async () => {
                     <i class="bi bi-paperclip"></i> {{ evidenciaFiles.length }} archivo(s) listo(s) para subir
                   </div>
                 </div>
+
+                <!-- Materiales Option -->
+                <div class="mb-3 p-2 border border-secondary border-opacity-50 rounded glass-panel">
+                  <label class="form-label small d-flex justify-content-between align-items-center mb-2 fw-bold text-warning">
+                    <span><i class="bi bi-box-seam me-1"></i> Materiales Utilizados</span>
+                    <button type="button" class="btn btn-sm btn-outline-warning py-0 px-2" @click="agregarConsumoNuevo" title="Agregar Material">
+                      <i class="bi bi-plus fw-bold"></i>
+                    </button>
+                  </label>
+                  <div v-for="(cons, index) in nuevoAvance.consumos_materiales" :key="index" class="d-flex gap-2 mb-2">
+                    <select v-model="cons.nombre_material" @change="actualizarUnidad(index)" class="form-select form-select-sm bg-dark text-white border-secondary" style="flex: 2;" required>
+                      <option value="" disabled>Insumo...</option>
+                      <option v-for="mat in store.proyectoActivo.materiales" :key="mat.id" :value="mat.descripcion">
+                        {{ mat.descripcion }}
+                      </option>
+                    </select>
+                    <input type="number" step="0.01" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" style="flex: 1;" placeholder="Cant." v-model="cons.cantidad_usada" required>
+                    <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" style="flex: 1;" placeholder="Und." v-model="cons.unidad">
+                    <button type="button" class="btn btn-sm btn-outline-danger px-2" @click="nuevoAvance.consumos_materiales.splice(index, 1)"><i class="bi bi-x"></i></button>
+                  </div>
+                  <div v-if="nuevoAvance.consumos_materiales.length === 0" class="small text-muted fst-italic"><i class="bi bi-info-circle me-1"></i> Opcional: Registre los insumos consumidos.</div>
+                </div>
+
                 <button type="submit" ref="submitBtn" class="btn btn-success w-100" :disabled="store.loading">
                   <span v-if="store.loading" class="spinner-border spinner-border-sm me-2"></span>
                   <i v-else class="bi bi-floppy me-1"></i>
