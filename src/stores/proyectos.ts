@@ -131,9 +131,7 @@ export const useProyectosStore = defineStore('proyectos', {
     },
     async descargarReportePdf(proyectoId: number, avanceId: number) {
       try {
-        const response = await api.get(`/proyectos/${proyectoId}/avances/${avanceId}/descargar-pdf`, {
-          responseType: 'blob'
-        });
+        const blob = await this.fetchPdfBlob(proyectoId, avanceId);
         
         // Generar nombre dinámico basado en el proyecto activo
         let filename = 'Reporte_Avance.pdf';
@@ -145,26 +143,34 @@ export const useProyectosStore = defineStore('proyectos', {
           filename = `${nomLimpio}_${label}_${num}.pdf`;
         }
 
-        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.setAttribute('download', filename);
         document.body.appendChild(link);
         link.click();
         link.parentNode?.removeChild(link);
+        // Sugerencia: no revocar inmediatamente si quieres que se vea, 
+        // pero para descarga directa está bien así.
       } catch (err: any) {
         this.error = 'Falló la generación del PDF. Verifique que la IA y la Base de datos están conectadas.';
         throw err;
       }
     },
+    async fetchPdfBlob(proyectoId: number, avanceId: number): Promise<Blob> {
+      const response = await api.get(`/proyectos/${proyectoId}/avances/${avanceId}/descargar-pdf`, {
+        responseType: 'blob'
+      });
+      return new Blob([response.data], { type: 'application/pdf' });
+    },
     async descargarBalanceGlobalPdf(proyectoId: number) {
       this.error = null;
       try {
-        const response = await api.get(`/proyectos/${proyectoId}/balance-pdf`, { responseType: 'blob' });
+        const blob = await this.fetchBalancePdfBlob(proyectoId);
         const nomLimpio = this.proyectoActivo?.nombre_proyecto.replace(/[^A-Za-z0-9_-]/g, "_") || 'Proyecto';
         const filename = `Balance_Global_${nomLimpio}.pdf`;
 
-        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.setAttribute('download', filename);
@@ -175,6 +181,10 @@ export const useProyectosStore = defineStore('proyectos', {
         this.error = 'Falló la descarga del Balance Global.';
         throw err;
       }
+    },
+    async fetchBalancePdfBlob(proyectoId: number): Promise<Blob> {
+        const response = await api.get(`/proyectos/${proyectoId}/balance-pdf`, { responseType: 'blob' });
+        return new Blob([response.data], { type: 'application/pdf' });
     },
     async uploadImagenEvidencia(files: File[]) {
       this.error = null;

@@ -18,6 +18,96 @@ const showToast = (message: string, type: ToastType = 'success') => {
   }, 3500);
 };
 
+// --- Lógica de PDF ---
+const generandoPDF = ref(false);
+const showPdfModal = ref(false);
+const currentPdfUrl = ref('');
+const pdfModalTitle = ref('');
+
+const verBalanceGlobal = async (proyecto: any) => {
+  generandoPDF.value = true;
+  try {
+    const blob = await store.fetchBalancePdfBlob(proyecto.id);
+    if (currentPdfUrl.value) window.URL.revokeObjectURL(currentPdfUrl.value);
+    currentPdfUrl.value = window.URL.createObjectURL(blob);
+    
+    pdfModalTitle.value = `Balance Global - ${proyecto.nombre_proyecto}`;
+    showPdfModal.value = true;
+
+    // Refrescar estado del botón descargar si era nuevo
+    if (!proyecto.ruta_pdf) await store.fetchProyectos();
+  } catch {
+    showToast('Error al visualizar el Balance Global.', 'danger');
+  } finally {
+    generandoPDF.value = false;
+  }
+};
+
+const descargarBalanceGlobal = async (proyecto: any) => {
+  generandoPDF.value = true;
+  try {
+    await store.descargarBalanceGlobalPdf(proyecto.id);
+    showToast('✔ Balance Global procesado correctamente.', 'success');
+    await store.fetchProyectos();
+  } catch {
+    showToast('Error al generar el Balance Global.', 'danger');
+  } finally {
+    generandoPDF.value = false;
+  }
+};
+
+const cerrarVisorPDF = () => {
+  showPdfModal.value = false;
+  if (currentPdfUrl.value) {
+    window.URL.revokeObjectURL(currentPdfUrl.value);
+    currentPdfUrl.value = '';
+  }
+};
+
+// --- Auxiliares para el Template ---
+const obtenerUltimoAvance = (proyecto: any) => {
+  if (!proyecto.avances || proyecto.avances.length === 0) return null;
+  // Ordenar por semana/día descendente y tomar el primero
+  return [...proyecto.avances].sort((a, b) => b.semana - a.semana)[0];
+};
+
+const verUltimoReporteSemanal = async (proyecto: any) => {
+  const ultimo = obtenerUltimoAvance(proyecto);
+  if (!ultimo) return;
+  
+  generandoPDF.value = true;
+  try {
+    const blob = await store.fetchPdfBlob(proyecto.id, ultimo.id);
+    if (currentPdfUrl.value) window.URL.revokeObjectURL(currentPdfUrl.value);
+    currentPdfUrl.value = window.URL.createObjectURL(blob);
+    
+    pdfModalTitle.value = `Reporte ${ultimo.tipo_periodo === 'SEMANA' ? 'Semana' : 'Día'} ${ultimo.semana} - ${proyecto.nombre_proyecto}`;
+    showPdfModal.value = true;
+
+    if (!ultimo.ruta_pdf) await store.fetchProyectos();
+  } catch {
+    showToast('Error al visualizar el reporte semanal.', 'danger');
+  } finally {
+    generandoPDF.value = false;
+  }
+};
+
+const descargarUltimoReporteSemanal = async (proyecto: any) => {
+  const ultimo = obtenerUltimoAvance(proyecto);
+  if (!ultimo) return;
+  
+  generandoPDF.value = true;
+  try {
+    await store.descargarReportePdf(proyecto.id, ultimo.id);
+    showToast('✔ Reporte semanal procesado.', 'success');
+    await store.fetchProyectos();
+  } catch {
+    showToast('Error al generar el reporte semanal.', 'danger');
+  } finally {
+    generandoPDF.value = false;
+  }
+};
+
 // --- Lógica de Eliminación ---
 const showConfirmModal = ref(false);
 const pendingDeleteId = ref<number | null>(null);
@@ -149,6 +239,54 @@ const limpiarFiltros = () => {
 </script>
 
 <template>
+  <!-- ===== VISOR DE PDF MODAL ===== -->
+  <Teleport to="body">
+    <Transition name="modal-fade">
+      <div v-if="showPdfModal" class="custom-modal-overlay">
+        <div class="glass-panel shadow-2xl d-flex flex-column" style="width: 95vw; height: 95vh; max-width: 1400px; border: 1px solid rgba(255,255,255,0.15); border-radius: 20px; overflow: hidden;">
+          <!-- Header del Visor -->
+          <div class="d-flex justify-content-between align-items-center p-3 border-bottom border-secondary border-opacity-25 bg-dark bg-opacity-20">
+            <h5 class="mb-0 fw-bold text-white d-flex align-items-center gap-2">
+              <i class="bi bi-file-earmark-pdf text-danger fs-4"></i>
+              {{ pdfModalTitle }}
+            </h5>
+            <button @click="cerrarVisorPDF" class="btn btn-link text-white p-0 text-decoration-none">
+              <i class="bi bi-x-lg fs-4"></i>
+            </button>
+          </div>
+          
+          <!-- Cuerpo con el Iframe -->
+          <div class="flex-grow-1 bg-white overflow-hidden" style="position: relative;">
+            <iframe 
+              v-if="currentPdfUrl"
+              :src="currentPdfUrl" 
+              class="w-100 h-100 border-0"
+              title="Visor de PDF"
+            ></iframe>
+            <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark">
+                <div class="spinner-border text-info" role="status"></div>
+            </div>
+          </div>
+          
+          <!-- Footer con instruccion -->
+          <div class="p-2 text-center bg-dark bg-opacity-40 border-top border-secondary border-opacity-25">
+            <small class="text-muted">Use los controles del visor para imprimir, descargar o ajustar el zoom.</small>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <!-- ===== OVERLAY GENERANDO PDF ===== -->
+  <Teleport to="body">
+    <div v-if="generandoPDF"
+      style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
+      <div class="spinner-border text-danger" style="width:3.5rem;height:3.5rem;" role="status"></div>
+      <span class="fw-bold text-white fs-5">Generando Reporte PDF con IA...</span>
+      <small class="text-muted">Esto puede tardar unos segundos, por favor espere.</small>
+    </div>
+  </Teleport>
+
   <!-- ===== TOASTS ===== -->
   <Teleport to="body">
     <div style="position:fixed;bottom:24px;right:24px;z-index:9998;display:flex;flex-direction:column;gap:10px;min-width:300px;">
@@ -308,20 +446,34 @@ const limpiarFiltros = () => {
               <p class="text-muted small mb-3"><i class="bi bi-calendar3"></i> {{ proyecto.fecha }}</p>
             </div>
             
-            <div class="d-flex justify-content-between mt-4">
-              <div>
-                <span class="d-block text-muted small">Costo Total</span>
-                <strong class="fs-5 text-success">{{ formatCurrency(proyecto.costo_total) }}</strong>
+            <div class="d-flex justify-content-between mt-3 px-1">
+              <div v-if="obtenerUltimoAvance(proyecto)" class="d-flex flex-column gap-1">
+                <span class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px;">Último Avance ({{ obtenerUltimoAvance(proyecto).semana }})</span>
+                <button @click.prevent="verUltimoReporteSemanal(proyecto)" 
+                  class="btn btn-sm d-flex align-items-center gap-2 px-3 rounded-pill transition-all" 
+                  :class="obtenerUltimoAvance(proyecto).ruta_pdf ? 'btn-outline-warning' : 'btn-outline-secondary opacity-50'"
+                  title="Ver Último Reporte Semanal" :disabled="generandoPDF">
+                  <i class="bi bi-eye-fill"></i>
+                  <span style="font-size: 0.75rem;">Ver Reporte</span>
+                </button>
               </div>
-              <div class="text-end">
-                <span class="d-block text-muted small">Utilidad Esperada</span>
-                <strong class="fs-5 text-info">{{ proyecto.utilidad_porcentaje }}%</strong>
+              <div v-else class="text-muted small">Sin reportes aún</div>
+
+              <div class="d-flex flex-column gap-1 align-items-end">
+                <span class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px;">Balance Global</span>
+                <button @click.prevent="verBalanceGlobal(proyecto)" 
+                  class="btn btn-sm d-flex align-items-center gap-2 px-3 rounded-pill transition-all" 
+                  :class="proyecto.ruta_pdf ? 'btn-outline-info' : 'btn-outline-secondary opacity-50'"
+                  title="Previsualizar Balance" :disabled="generandoPDF">
+                  <i class="bi bi-eye-fill"></i>
+                  <span style="font-size: 0.75rem;">Ver Balance</span>
+                </button>
               </div>
             </div>
           </div>
-          <div class="card-footer bg-transparent border-0 pt-0 text-end">
-            <RouterLink :to="`/proyectos/${proyecto.id}`" class="btn btn-sm btn-outline-light rounded-pill px-3 mt-2">
-              Ver Detalles <i class="bi bi-arrow-right-short"></i>
+          <div class="card-footer bg-transparent border-0 pt-0 text-end pb-3">
+            <RouterLink :to="`/proyectos/${proyecto.id}`" class="btn btn-sm btn-outline-light rounded-pill px-4">
+              Ir al Proyecto <i class="bi bi-arrow-right-short"></i>
             </RouterLink>
           </div>
         </div>

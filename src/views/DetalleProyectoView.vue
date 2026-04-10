@@ -38,6 +38,9 @@ const showToast = (message: string, type: ToastType = 'success') => {
 };
 
 const generandoPDF = ref(false);
+const showPdfModal = ref(false);
+const currentPdfUrl = ref('');
+const pdfModalTitle = ref('');
 
 // Refs para navegación con Enter
 const inputSemana = ref<HTMLInputElement | null>(null);
@@ -297,6 +300,58 @@ const descargarBalanceGlobal = async () => {
     generandoPDF.value = false;
   }
 };
+
+const verPDF = async (avanceId: number) => {
+  const pId = Number(route.params.id);
+  if (!pId || !avanceId) return;
+  generandoPDF.value = true;
+  try {
+    const blob = await store.fetchPdfBlob(pId, avanceId);
+    if (currentPdfUrl.value) window.URL.revokeObjectURL(currentPdfUrl.value);
+    currentPdfUrl.value = window.URL.createObjectURL(blob);
+    
+    const avance = store.proyectoActivo?.avances.find(a => a.id === avanceId);
+    pdfModalTitle.value = `Reporte ${avance?.tipo_periodo === 'SEMANA' ? 'Semana' : 'Día'} ${avance?.semana}`;
+    showPdfModal.value = true;
+    
+    // Si era nuevo y se generó, refrescamos el estado del botón descargar
+    if (!avance?.ruta_pdf) await store.fetchProyectoActivo(pId);
+    
+  } catch {
+    showToast('Error al visualizar el PDF.', 'danger');
+  } finally {
+    generandoPDF.value = false;
+  }
+};
+
+const verBalanceGlobal = async () => {
+  const pId = Number(route.params.id);
+  if (!pId) return;
+  generandoPDF.value = true;
+  try {
+    const blob = await store.fetchBalancePdfBlob(pId);
+    if (currentPdfUrl.value) window.URL.revokeObjectURL(currentPdfUrl.value);
+    currentPdfUrl.value = window.URL.createObjectURL(blob);
+    
+    pdfModalTitle.value = `Balance Global - ${store.proyectoActivo?.nombre_proyecto}`;
+    showPdfModal.value = true;
+
+    // Refrescar estado del botón descargar
+    if (!store.proyectoActivo?.ruta_pdf) await store.fetchProyectoActivo(pId);
+  } catch {
+    showToast('Error al visualizar el Balance Global.', 'danger');
+  } finally {
+    generandoPDF.value = false;
+  }
+};
+
+const cerrarVisorPDF = () => {
+  showPdfModal.value = false;
+  if (currentPdfUrl.value) {
+    window.URL.revokeObjectURL(currentPdfUrl.value);
+    currentPdfUrl.value = '';
+  }
+};
 // ── Tab activo controlado por Vue (con feedback visual animado) ──
 const activeTab = ref<'rrhh' | 'mats' | 'avance'>('rrhh');
 
@@ -332,6 +387,44 @@ const ejecutarEliminacion = async () => {
 </script>
 
 <template>
+  <!-- ===== VISOR DE PDF MODAL ===== -->
+  <Teleport to="body">
+    <Transition name="modal-fade">
+      <div v-if="showPdfModal" class="custom-modal-overlay">
+        <div class="glass-panel shadow-2xl d-flex flex-column" style="width: 95vw; height: 95vh; max-width: 1400px; border: 1px solid rgba(255,255,255,0.15);">
+          <!-- Header del Visor -->
+          <div class="d-flex justify-content-between align-items-center p-3 border-bottom border-secondary border-opacity-25 bg-dark bg-opacity-20">
+            <h5 class="mb-0 fw-bold text-white d-flex align-items-center gap-2">
+              <i class="bi bi-file-earmark-pdf text-danger fs-4"></i>
+              {{ pdfModalTitle }}
+            </h5>
+            <button @click="cerrarVisorPDF" class="btn btn-link text-white p-0 text-decoration-none">
+              <i class="bi bi-x-lg fs-4"></i>
+            </button>
+          </div>
+          
+          <!-- Cuerpo con el Iframe -->
+          <div class="flex-grow-1 bg-white overflow-hidden" style="position: relative;">
+            <iframe 
+              v-if="currentPdfUrl"
+              :src="currentPdfUrl" 
+              class="w-100 h-100 border-0"
+              title="Visor de PDF"
+            ></iframe>
+            <div v-else class="w-100 h-100 d-flex align-items-center justify-content-center bg-dark">
+                <div class="spinner-border text-info" role="status"></div>
+            </div>
+          </div>
+          
+          <!-- Footer con instruccion -->
+          <div class="p-2 text-center bg-dark bg-opacity-40 border-top border-secondary border-opacity-25">
+            <small class="text-muted">Use los controles del visor para imprimir, descargar o ajustar el zoom.</small>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
   <!-- ===== OVERLAY CONFIRMACIÓN ELIMINAR ===== -->
   <Teleport to="body">
     <Transition name="modal-fade">
@@ -402,20 +495,23 @@ const ejecutarEliminacion = async () => {
         <p class="text-muted"><i class="bi bi-calendar3"></i> Fecha Presupuestada: {{ store.proyectoActivo.fecha }}</p>
       </div>
       <div class="d-flex gap-3 align-items-center flex-wrap">
-        <button 
-          @click="descargarBalanceGlobal" 
-          class="btn fw-semibold align-items-center d-flex gap-2 text-white"
-          :style="store.proyectoActivo.ruta_pdf 
-            ? 'background: linear-gradient(145deg, #059669, #064e3b); border: 1px solid #059669' 
-            : 'background: linear-gradient(145deg, #1A2235, #111827); border: 1px solid #374151'"
-          :disabled="generandoPDF"
-        >
-          <i v-if="generandoPDF" class="spinner-border spinner-border-sm text-secondary"></i>
-          <template v-else>
-            <i class="bi bi-file-earmark-pdf-fill" :class="store.proyectoActivo.ruta_pdf ? 'text-white' : 'text-danger'"></i> 
-            {{ store.proyectoActivo.ruta_pdf ? 'Descargar Balance Acumulado' : 'Generar Balance Acumulado' }}
-          </template>
-        </button>
+        <div class="d-flex gap-2">
+          <button 
+            @click="verBalanceGlobal" 
+            class="btn fw-semibold align-items-center d-flex gap-2 text-white border-0 transition-all shadow-sm"
+            :style="store.proyectoActivo.ruta_pdf 
+              ? 'background: linear-gradient(135deg, #0284c7, #0369a1);' 
+              : 'background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1) !important;'"
+            title="Previsualizar Balance Acumulado"
+            :disabled="generandoPDF"
+          >
+            <i v-if="generandoPDF" class="spinner-border spinner-border-sm text-info"></i>
+            <template v-else>
+              <i class="bi bi-eye-fill fs-5" :class="store.proyectoActivo.ruta_pdf ? 'text-white' : 'text-muted'"></i> 
+              <span :class="store.proyectoActivo.ruta_pdf ? 'text-white' : 'text-muted'">Ver Balance Acumulado</span>
+            </template>
+          </button>
+        </div>
         <div class="text-end glass-panel px-4 py-2 bg-primary bg-opacity-10 border-primary">
           <span class="d-block small text-muted">Costo Directo Total</span>
           <h3 class="mb-0 fw-bold text-primary">{{ formatCurrency(store.proyectoActivo.costo_total) }}</h3>
@@ -624,17 +720,17 @@ const ejecutarEliminacion = async () => {
                   <strong>{{ av.consumos.length }}</strong> material(es) registrado(s) en este uso.
                 </div>
 
-                <div class="mt-3 d-flex justify-content-end align-items-center gap-2 border-top border-secondary pt-2">
-                  <button @click="eliminarAvance(av.id!)" class="btn btn-sm btn-outline-danger" title="Eliminar Seguimiento">
+                <div class="mt-3 d-flex justify-content-end align-items-center gap-2 border-top border-secondary border-opacity-10 pt-2">
+                  <button @click="eliminarAvance(av.id!)" class="btn btn-sm btn-link text-danger text-decoration-none opacity-50 hover-opacity-100" title="Eliminar Seguimiento">
                     <i class="bi bi-trash3"></i>
                   </button>
-                  <button @click="descargarPDF(av.id!)" :disabled="generandoPDF"
-                    class="btn btn-sm d-inline-flex align-items-center fw-bold transition-all"
-                    :class="av.ruta_pdf ? 'btn-success bg-opacity-75 text-white' : 'btn-outline-light'"
+                  <button @click="verPDF(av.id!)" :disabled="generandoPDF"
+                    class="btn btn-sm d-inline-flex align-items-center fw-bold transition-all px-3 rounded-pill"
+                    :class="av.ruta_pdf ? 'btn-info bg-opacity-75 text-white' : 'btn-outline-secondary opacity-75'"
                   >
                     <span v-if="generandoPDF" class="spinner-border spinner-border-sm me-2"></span>
-                    <i v-else class="bi fs-5 me-2" :class="av.ruta_pdf ? 'bi-cloud-download-fill text-white' : 'bi-file-earmark-pdf-fill text-danger'"></i>
-                    {{ generandoPDF ? 'Generando...' : (av.ruta_pdf ? 'Descargar Reporte PDF' : 'Generar Reporte PDF') }}
+                    <i v-else class="bi bi-eye-fill me-2" :class="av.ruta_pdf ? 'text-white' : 'text-muted'"></i>
+                    {{ generandoPDF ? 'Procesando...' : (av.ruta_pdf ? 'Ver Reporte' : 'Generar y Ver Reporte') }}
                   </button>
                 </div>
               </div>
