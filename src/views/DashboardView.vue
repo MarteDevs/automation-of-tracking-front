@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { useProyectosStore } from '@/stores/proyectos';
 
 const store = useProyectosStore();
@@ -51,6 +51,100 @@ onMounted(async () => {
 
 const formatCurrency = (value: number) => {
   return new Intl.NumberFormat('es-PE', { style: 'currency', currency: 'PEN' }).format(value);
+};
+
+// ── FILTROS ──
+const busquedaNombre = ref('');
+const filtroMes = ref('');
+const filtroAnio = ref('');
+const ordenarPor = ref('reciente');
+
+const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+
+// Parsear fecha en formato dd/mm/yyyy o yyyy-mm-dd
+const parseFecha = (fechaStr: string): Date | null => {
+  if (!fechaStr) return null;
+  const parts = fechaStr.split(/[-/]/);
+  if (parts.length !== 3) return null;
+  const p0 = parts[0]!, p1 = parts[1]!, p2 = parts[2]!;
+  if (p0.length === 4) return new Date(Number(p0), Number(p1) - 1, Number(p2));
+  return new Date(Number(p2), Number(p1) - 1, Number(p0));
+};
+
+// Años únicos disponibles (descendente)
+const aniosDisponibles = computed(() => {
+  const set = new Set<number>();
+  store.proyectos.forEach(p => {
+    const d = parseFecha(p.fecha);
+    if (d) set.add(d.getFullYear());
+  });
+  return Array.from(set).sort((a, b) => b - a);
+});
+
+// Meses únicos disponibles para el año seleccionado (o todos)
+const mesesDisponibles = computed(() => {
+  const set = new Set<number>();
+  store.proyectos.forEach(p => {
+    const d = parseFecha(p.fecha);
+    if (!d) return;
+    if (filtroAnio.value && d.getFullYear() !== Number(filtroAnio.value)) return;
+    set.add(d.getMonth());
+  });
+  return Array.from(set).sort((a, b) => a - b);
+});
+
+// Proyectos filtrados y ordenados
+const proyectosFiltrados = computed(() => {
+  let lista = [...store.proyectos];
+
+  // Filtro nombre
+  if (busquedaNombre.value.trim()) {
+    const q = busquedaNombre.value.trim().toLowerCase();
+    lista = lista.filter(p => p.nombre_proyecto.toLowerCase().includes(q));
+  }
+
+  // Filtro año
+  if (filtroAnio.value) {
+    lista = lista.filter(p => {
+      const d = parseFecha(p.fecha);
+      return d && d.getFullYear() === Number(filtroAnio.value);
+    });
+  }
+
+  // Filtro mes
+  if (filtroMes.value !== '') {
+    lista = lista.filter(p => {
+      const d = parseFecha(p.fecha);
+      return d && d.getMonth() === Number(filtroMes.value);
+    });
+  }
+
+  // Ordenar
+  lista.sort((a, b) => {
+    if (ordenarPor.value === 'reciente') {
+      return (parseFecha(b.fecha)?.getTime() ?? 0) - (parseFecha(a.fecha)?.getTime() ?? 0);
+    } else if (ordenarPor.value === 'antiguo') {
+      return (parseFecha(a.fecha)?.getTime() ?? 0) - (parseFecha(b.fecha)?.getTime() ?? 0);
+    } else if (ordenarPor.value === 'mayor_costo') {
+      return b.costo_total - a.costo_total;
+    } else if (ordenarPor.value === 'menor_costo') {
+      return a.costo_total - b.costo_total;
+    }
+    return 0;
+  });
+
+  return lista;
+});
+
+const hayFiltrosActivos = computed(() =>
+  busquedaNombre.value.trim() !== '' || filtroMes.value !== '' || filtroAnio.value !== ''
+);
+
+const limpiarFiltros = () => {
+  busquedaNombre.value = '';
+  filtroMes.value = '';
+  filtroAnio.value = '';
+  ordenarPor.value = 'reciente';
 };
 </script>
 
@@ -110,6 +204,73 @@ const formatCurrency = (value: number) => {
       </RouterLink>
     </div>
 
+    <!-- ── BARRA DE FILTROS ── -->
+    <div class="filter-bar glass-panel p-3 mb-4">
+      <div class="row g-2 align-items-center">
+        <!-- Búsqueda por nombre -->
+        <div class="col-12 col-md-4">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text bg-transparent border-secondary text-muted">
+              <i class="bi bi-search"></i>
+            </span>
+            <input
+              v-model="busquedaNombre"
+              type="text"
+              class="form-control form-control-sm filter-input"
+              placeholder="Buscar por nombre..."
+            />
+          </div>
+        </div>
+
+        <!-- Filtro Año -->
+        <div class="col-6 col-md-2">
+          <select v-model="filtroAnio" class="form-select form-select-sm filter-input" @change="filtroMes = ''">
+            <option value="">Todos los años</option>
+            <option v-for="anio in aniosDisponibles" :key="anio" :value="String(anio)">{{ anio }}</option>
+          </select>
+        </div>
+
+        <!-- Filtro Mes -->
+        <div class="col-6 col-md-2">
+          <select v-model="filtroMes" class="form-select form-select-sm filter-input">
+            <option value="">Todos los meses</option>
+            <option v-for="m in mesesDisponibles" :key="m" :value="String(m)">{{ MESES[m] }}</option>
+          </select>
+        </div>
+
+        <!-- Ordenar -->
+        <div class="col-8 col-md-3">
+          <select v-model="ordenarPor" class="form-select form-select-sm filter-input">
+            <option value="reciente">Más reciente primero</option>
+            <option value="antiguo">Más antiguo primero</option>
+            <option value="mayor_costo">Mayor costo</option>
+            <option value="menor_costo">Menor costo</option>
+          </select>
+        </div>
+
+        <!-- Limpiar filtros -->
+        <div class="col-4 col-md-1 text-end">
+          <button
+            v-if="hayFiltrosActivos"
+            @click="limpiarFiltros"
+            class="btn btn-sm btn-outline-secondary w-100"
+            title="Limpiar filtros"
+          >
+            <i class="bi bi-x-lg"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Contador resultados -->
+      <div class="mt-2 d-flex align-items-center gap-2">
+        <span class="small text-muted">
+          <i class="bi bi-funnel-fill text-primary me-1"></i>
+          {{ proyectosFiltrados.length }} proyecto(s) encontrado(s)
+        </span>
+        <span v-if="hayFiltrosActivos" class="badge bg-primary bg-opacity-25 text-primary small">Filtros activos</span>
+      </div>
+    </div>
+
     <div v-if="store.loading" class="text-center py-5">
       <div class="spinner-border text-primary" role="status">
         <span class="visually-hidden">Loading...</span>
@@ -126,20 +287,25 @@ const formatCurrency = (value: number) => {
       <p class="text-muted">Despliega tu primer presupuesto PDF utilizando inteligencia artificial.</p>
     </div>
 
+    <div v-else-if="proyectosFiltrados.length === 0" class="text-center py-5 glass-panel">
+      <i class="bi bi-search fs-1 text-muted"></i>
+      <h4 class="mt-3 text-muted">Sin resultados</h4>
+      <p class="text-muted small">Ningún proyecto coincide con los filtros aplicados.</p>
+      <button @click="limpiarFiltros" class="btn btn-sm btn-outline-primary mt-1">Limpiar filtros</button>
+    </div>
+
     <div v-else class="row g-4">
-      <div class="col-12 col-md-6 col-lg-4" v-for="proyecto in store.proyectos" :key="proyecto.id">
+      <div class="col-12 col-md-6 col-lg-4" v-for="proyecto in proyectosFiltrados" :key="proyecto.id">
         <div class="card glass-panel h-100 p-2 overflow-hidden position-relative border-top-0 border-start-0 border-end-0 border-bottom border-primary border-4 text-decoration-none">
           <div class="card-body">
-            <div class="d-flex justify-content-between align-items-start">
-              <div>
-                <h5 class="card-title fw-bold text-truncate" :title="proyecto.nombre_proyecto">
-                  {{ proyecto.nombre_proyecto }}
-                </h5>
-                <p class="text-muted small mb-3"><i class="bi bi-calendar3"></i> {{ proyecto.fecha }}</p>
-              </div>
-              <button @click.prevent="abrirModalEliminar(proyecto.id)" class="btn btn-link text-danger p-0 border-0 text-decoration-none opacity-50 hover-opacity-100" title="Eliminar Proyecto">
+            <div class="position-relative">
+              <button @click.prevent="abrirModalEliminar(proyecto.id)" class="btn btn-link text-danger p-0 border-0 text-decoration-none opacity-50 hover-opacity-100 position-absolute top-0 end-0" title="Eliminar Proyecto">
                 <i class="bi bi-trash3 fs-5"></i>
               </button>
+              <h5 class="card-title fw-bold pe-4 mb-1" style="line-height:1.35; word-break:break-word;">
+                {{ proyecto.nombre_proyecto }}
+              </h5>
+              <p class="text-muted small mb-3"><i class="bi bi-calendar3"></i> {{ proyecto.fecha }}</p>
             </div>
             
             <div class="d-flex justify-content-between mt-4">
@@ -165,6 +331,35 @@ const formatCurrency = (value: number) => {
 </template>
 
 <style scoped>
+/* ── Filter Bar ── */
+.filter-bar {
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 12px;
+}
+
+.filter-input {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #e2e8f0 !important;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.filter-input:focus {
+  border-color: rgba(59, 130, 246, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12) !important;
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+.filter-input option {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+.input-group-text {
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  border-right: none !important;
+}
+.filter-input.form-control {
+  border-left: none !important;
+}
+
 /* ── Toast animations ── */
 .toast-fade-enter-active,
 .toast-fade-leave-active {
