@@ -240,7 +240,7 @@ const guardarAvance = async () => {
 const agregarConsumoNuevo = () => {
   nuevoAvance.value.consumos_materiales.push({
     nombre_material: '',
-    cantidad_usada: 1,
+    cantidad_usada: null as any,
     unidad: ''
   });
 };
@@ -276,10 +276,26 @@ const materialesDisponibles = computed(() => {
   });
 });
 
+const materialesFiltradosPorFila = (index: number) => {
+  // Lista de nombres seleccionados en OTRAS filas
+  const seleccionadosEnOtros = nuevoAvance.value.consumos_materiales
+    .filter((_, idx) => idx !== index)
+    .map(c => c.nombre_material)
+    .filter(name => !!name);
+
+  return materialesDisponibles.value.filter(mat => !seleccionadosEnOtros.includes(mat.descripcion));
+};
+
 const obtenerCantidadRestante = (nombre: string) => {
   if (!nombre) return '';
   const mat = materialesDisponibles.value.find(m => m.descripcion === nombre);
   return mat ? `Disp: ${mat.restante}` : '';
+};
+
+const obtenerRestanteNumerico = (nombre: string) => {
+  if (!nombre) return 999999;
+  const mat = materialesDisponibles.value.find(m => m.descripcion === nombre);
+  return mat ? mat.restante : 999999;
 };
 
 const guardarSemanasEstimadas = async () => {
@@ -837,11 +853,13 @@ const ejecutarEliminacion = async () => {
                   <div v-for="(cons, index) in nuevoAvance.consumos_materiales" :key="index" class="d-flex gap-2 mb-2">
                     <select v-model="cons.nombre_material" @change="actualizarUnidad(index)" class="form-select form-select-sm bg-dark text-white border-secondary" style="flex: 3;" required>
                       <option value="" disabled>Insumo...</option>
-                      <option v-for="mat in materialesDisponibles" :key="mat.id" :value="mat.descripcion">
+                      <option v-for="mat in materialesFiltradosPorFila(index)" :key="mat.id" :value="mat.descripcion">
                         {{ mat.descripcion }}
                       </option>
                     </select>
-                    <input type="number" step="0.01" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" style="flex: 1;" placeholder="Cant." v-model="cons.cantidad_usada" required>
+                    <input type="number" step="0.01" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" 
+                      style="flex: 1;" placeholder="Cant." v-model="cons.cantidad_usada" 
+                      :max="obtenerRestanteNumerico(cons.nombre_material)" required>
                     <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" style="flex: 1;" placeholder="Und." v-model="cons.unidad" readonly>
                     <input type="text" class="form-control form-control-sm bg-dark text-info border-secondary text-center px-1" style="flex: 1.5;" :value="obtenerCantidadRestante(cons.nombre_material)" readonly title="Cantidad restante disponible" placeholder="Tope">
                     <button type="button" class="btn btn-sm btn-outline-danger px-2" @click="nuevoAvance.consumos_materiales.splice(index, 1)"><i class="bi bi-x"></i></button>
