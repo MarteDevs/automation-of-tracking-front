@@ -151,6 +151,16 @@ const totalMateriales = computed(() =>
 
 const totalGeneral = computed(() => totalManoObra.value + totalMateriales.value);
 
+// Nuevos cálculos para el resumen financiero "Image 1"
+const utilidadPorc = computed(() => (store.proyectoActivo?.utilidad_porcentaje ?? 10) / 100);
+const otrosPorc = computed(() => (store.proyectoActivo?.otros_porcentaje ?? 5) / 100);
+
+const utilidadMoneda = computed(() => totalGeneral.value * utilidadPorc.value);
+const otrosMoneda = computed(() => totalGeneral.value * otrosPorc.value);
+const subtotalConIndirectos = computed(() => totalGeneral.value + utilidadMoneda.value + otrosMoneda.value);
+const igvCalculado = computed(() => subtotalConIndirectos.value * 0.18);
+const presupuestoTotalFinal = computed(() => subtotalConIndirectos.value + igvCalculado.value);
+
 const guardarAvance = async () => {
   if (store.loading) return;
   const pId = Number(route.params.id);
@@ -420,14 +430,35 @@ const ejecutarEliminacion = async () => {
             </tfoot>
           </table>
 
-          <!-- TOTAL GENERAL -->
-          <div class="d-flex justify-content-end mt-3">
-            <div class="glass-panel px-4 py-3 border-primary bg-primary bg-opacity-10 text-end" style="min-width: 280px;">
-              <span class="d-block small text-muted mb-1">Costos Fijos + Costos Variables</span>
-              <div class="d-flex justify-content-between align-items-center gap-4">
-                <span class="fw-bold text-white">Total General a Pagar:</span>
-                <span class="fw-bold text-primary fs-5">{{ formatCurrency(totalGeneral) }}</span>
-              </div>
+          <!-- TOTAL GENERAL DETALLADO (Estilo Imagen 1) -->
+          <div class="d-flex justify-content-end mt-4">
+            <div class="glass-panel p-0 border-primary overflow-hidden" style="min-width: 400px; border-width: 1px;">
+              <table class="table table-sm table-borderless mb-0 text-white">
+                <tr class="border-bottom border-secondary border-opacity-25">
+                  <td class="p-3 fw-bold bg-dark bg-opacity-25">COSTO DIRECTO</td>
+                  <td class="p-3 text-end fw-bold">{{ formatCurrency(totalGeneral) }}</td>
+                </tr>
+                <tr class="border-bottom border-secondary border-opacity-25">
+                  <td class="p-3">UTILIDAD ({{ (utilidadPorc * 100).toFixed(1) }}%)</td>
+                  <td class="p-3 text-end">{{ formatCurrency(utilidadMoneda) }}</td>
+                </tr>
+                <tr class="border-bottom border-secondary border-opacity-25">
+                  <td class="p-3">OTROS ({{ (otrosPorc * 100).toFixed(1) }}%)</td>
+                  <td class="p-3 text-end">{{ formatCurrency(otrosMoneda) }}</td>
+                </tr>
+                <tr class="border-bottom border-primary border-opacity-50">
+                  <td class="p-3 fw-bold bg-dark bg-opacity-25">SUBTOTAL</td>
+                  <td class="p-3 text-end fw-bold">{{ formatCurrency(subtotalConIndirectos) }}</td>
+                </tr>
+                <tr class="border-bottom border-secondary border-opacity-25">
+                  <td class="p-3">IGV (18%)</td>
+                  <td class="p-3 text-end">{{ formatCurrency(igvCalculado) }}</td>
+                </tr>
+                <tr class="bg-primary bg-opacity-20">
+                  <td class="p-3 fw-bold fs-5 text-primary">PRESUPUESTO TOTAL</td>
+                  <td class="p-3 text-end fw-bold fs-5 text-primary">{{ formatCurrency(presupuestoTotalFinal) }}</td>
+                </tr>
+              </table>
             </div>
           </div>
         </div>

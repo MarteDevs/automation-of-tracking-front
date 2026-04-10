@@ -41,6 +41,7 @@ export interface Proyecto {
   fecha: string;
   costo_total: number;
   utilidad_porcentaje: number;
+  otros_porcentaje: number;
   semanas_estimadas: number; // NUEVO
   tipo_duracion: string; // 'SEMANAS' | 'DIAS'
   mano_de_obra: ManoObra[];
