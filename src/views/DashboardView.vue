@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
 import { useProyectosStore } from '@/stores/proyectos';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 
 const store = useProyectosStore();
 
@@ -243,13 +244,59 @@ const limpiarFiltros = () => {
   ordenarPor.value = 'reciente';
 };
 
-const exportarExcel = () => {
+const exportarExcel = async () => {
   if (proyectosFiltrados.value.length === 0) {
     showToast('No hay proyectos para exportar.', 'info');
     return;
   }
   
-  const datosParaExcel = proyectosFiltrados.value.map(p => {
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Resumen', {
+    properties: { tabColor: { argb: 'FF0284C7' } }
+  });
+
+  // Título principal gigante
+  worksheet.mergeCells('A1:L1');
+  const titleCell = worksheet.getCell('A1');
+  titleCell.value = 'REPORTE GERENCIAL DE PROYECTOS';
+  titleCell.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
+  titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0F172A' } };
+  titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+  worksheet.getRow(1).height = 35;
+
+  // Fila de separación
+  worksheet.addRow([]);
+
+  // Configuración de anchos de columna (sin 'header' para que no sobrescriba la fila 1)
+  worksheet.columns = [
+    { key: 'id', width: 8 },
+    { key: 'nombre', width: 45 },
+    { key: 'fecha', width: 15 },
+    { key: 'estado', width: 18 },
+    { key: 'duracion', width: 15 },
+    { key: 'mo', width: 26 },
+    { key: 'mat', width: 30 },
+    { key: 'cd', width: 20 },
+    { key: 'ind', width: 25 },
+    { key: 'sub', width: 20 },
+    { key: 'igv', width: 18 },
+    { key: 'total', width: 35 }
+  ];
+
+  // Aplicar estilos a la fila de cabeceras (Fila 3)
+  const headerRow = worksheet.getRow(3);
+  headerRow.values = [
+    'ID', 'NOMBRE DEL PROYECTO', 'FECHA BASE', 'ESTADO', 'DURACIÓN',
+    'TOTAL COSTOS FIJOS (S/)', 'TOTAL COSTOS VARIABLES (S/)', 'COSTO DIRECTO (S/)',
+    'COSTOS INDIRECTOS (S/)', 'SUBTOTAL (S/)', 'IGV (18%)', 'PRESUPUESTO TOTAL DEL PROYECTO'
+  ];
+  headerRow.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
+  headerRow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0284C7' } };
+  headerRow.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+  headerRow.height = 35;
+
+  // Agregar datos
+  proyectosFiltrados.value.forEach((p, index) => {
     const mano_obra = (p.mano_de_obra || []).reduce((acc: number, mo: any) => acc + (mo.total || 0), 0);
     const materiales = (p.materiales || []).reduce((acc: number, mat: any) => acc + (mat.total || 0), 0);
     
@@ -262,58 +309,73 @@ const exportarExcel = () => {
     const igv = subtotal * 0.18;
     const presupuesto_total = subtotal + igv;
     
+    // Encontrar si está completado usando tu función existente
     const estado = isProjectCompleted(p) ? 'COMPLETADO' : 'EN EJECUCIÓN';
-    const avancesCount = p.avances ? p.avances.length : 0;
-    const maxAvanceFisico = p.avances ? Math.max(...p.avances.map((a: any) => a.porcentaje_avance || 0)) : 0;
     
-    return {
-      'ID Control': p.id,
-      'Nombre del Proyecto': p.nombre_proyecto,
-      'Fecha Presupuestada': p.fecha,
-      'Estado': estado,
-      'Duración Estimada': p.semanas_estimadas ? `${p.semanas_estimadas} ${p.tipo_duracion || 'SEMANAS'}` : '-',
-      'Avances Registrados': avancesCount,
-      'Progreso Físico Máx.': maxAvanceFisico > 0 ? `${maxAvanceFisico}%` : '-',
-      'Mano de Obra (S/)': Number(mano_obra.toFixed(2)),
-      'Materiales (S/)': Number(materiales.toFixed(2)),
-      'COSTO DIRECTO (S/)': Number(costo_directo.toFixed(2)),
-      'Utilidad 10% (S/)': Number(utilidad_moneda.toFixed(2)),
-      'Gastos Generales 5% (S/)': Number(otros_moneda.toFixed(2)),
-      'SUBTOTAL (S/)': Number(subtotal.toFixed(2)),
-      'IGV 18% (S/)': Number(igv.toFixed(2)),
-      'PRESUPUESTO TOTAL (S/)': Number(presupuesto_total.toFixed(2))
-    };
-  });
-  
-  const ws = XLSX.utils.json_to_sheet(datosParaExcel);
-  
-  // Ancho de columnas
-  ws['!cols'] = [
-    { wch: 10 }, // ID
-    { wch: 50 }, // Nombre
-    { wch: 18 }, // Fecha
-    { wch: 15 }, // Estado
-    { wch: 18 }, // Duracion
-    { wch: 18 }, // Avances
-    { wch: 20 }, // Progreso
-    { wch: 18 }, // MO
-    { wch: 18 }, // MAT
-    { wch: 20 }, // CD
-    { wch: 16 }, // Uti
-    { wch: 25 }, // GG
-    { wch: 18 }, // Sub
-    { wch: 15 }, // IGV
-    { wch: 22 }  // Total
-  ];
+    const row = worksheet.addRow({
+      id: p.id,
+      nombre: p.nombre_proyecto,
+      fecha: p.fecha,
+      estado: estado,
+      duracion: p.semanas_estimadas ? `${p.semanas_estimadas} ${p.tipo_duracion || 'SEM.'}` : '-',
+      mo: mano_obra,
+      mat: materiales,
+      cd: costo_directo,
+      ind: costos_indirectos,
+      sub: subtotal,
+      igv: igv,
+      total: presupuesto_total
+    });
 
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, "Proyectos");
-  
+    row.font = { name: 'Arial', size: 10 };
+    
+    // Color de zebra filas pares
+    if (index % 2 !== 0) {
+      row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
+    }
+
+    // Alineamientos de las primeras columnas
+    ['A', 'C', 'D', 'E'].forEach(col => {
+        row.getCell(col).alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+    row.getCell('B').alignment = { vertical: 'middle' };
+
+    // Formato de Moneda para datos financieros
+    ['F', 'G', 'H', 'I', 'J', 'K', 'L'].forEach(col => {
+        const cell = row.getCell(col);
+        cell.numFmt = '"S/"#,##0.00';
+        cell.alignment = { horizontal: 'right', vertical: 'middle' };
+    });
+    
+    // Resaltar PRESUPUESTO TOTAL (La última columna)
+    const totalCell = row.getCell('L');
+    totalCell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF0F172A' } };
+    totalCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+  });
+
+  // Pintar todos los bordes
+  worksheet.eachRow((row, rowNumber) => {
+    if (rowNumber >= 3) {
+      row.eachCell((cell) => {
+        cell.border = {
+          top: {style:'thin', color: {argb:'FFCBD5E1'}},
+          left: {style:'thin', color: {argb:'FFCBD5E1'}},
+          bottom: {style:'thin', color: {argb:'FFCBD5E1'}},
+          right: {style:'thin', color: {argb:'FFCBD5E1'}}
+        };
+      });
+    }
+  });
+
   const d = new Date();
   const dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
   
-  XLSX.writeFile(wb, `Reporte_Proyectos_Derek_${dateStr}.xlsx`);
-  showToast('✔ Excel generado y descargando correctamente.', 'success');
+  // Guardar y Descargar como Blob -> Archivo
+  const buffer = await workbook.xlsx.writeBuffer();
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  saveAs(blob, `Reporte_Proyectos_Resumen_${dateStr}.xlsx`);
+
+  showToast('✔ Excel gerencial generado con formato moderno.', 'success');
 };
 </script>
 
