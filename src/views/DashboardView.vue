@@ -274,6 +274,8 @@ const exportarExcel = async () => {
     { key: 'fecha', width: 15 },
     { key: 'estado', width: 18 },
     { key: 'duracion', width: 15 },
+    { key: 'avances', width: 22 },
+    { key: 'pct', width: 22 },
     { key: 'mo', width: 26 },
     { key: 'mat', width: 30 },
     { key: 'cd', width: 20 },
@@ -287,6 +289,7 @@ const exportarExcel = async () => {
   const headerRow = worksheet.getRow(3);
   headerRow.values = [
     'ID', 'NOMBRE DEL PROYECTO', 'FECHA BASE', 'ESTADO', 'DURACIÓN',
+    'AVANCES REGISTRADOS', 'AVANCE FÍSICO MÁX.',
     'TOTAL COSTOS FIJOS (S/)', 'TOTAL COSTOS VARIABLES (S/)', 'COSTO DIRECTO (S/)',
     'COSTOS INDIRECTOS (S/)', 'SUBTOTAL (S/)', 'IGV (18%)', 'PRESUPUESTO TOTAL DEL PROYECTO'
   ];
@@ -311,6 +314,10 @@ const exportarExcel = async () => {
     
     // Encontrar si está completado usando tu función existente
     const estado = isProjectCompleted(p) ? 'COMPLETADO' : 'EN EJECUCIÓN';
+    const avancesCount = p.avances ? p.avances.length : 0;
+    const maxAvanceFisico = p.avances && p.avances.length > 0
+      ? Math.max(...p.avances.map((a: any) => a.porcentaje_avance || 0)) 
+      : 0;
     
     const row = worksheet.addRow({
       id: p.id,
@@ -318,6 +325,8 @@ const exportarExcel = async () => {
       fecha: p.fecha,
       estado: estado,
       duracion: p.semanas_estimadas ? `${p.semanas_estimadas} ${p.tipo_duracion || 'SEM.'}` : '-',
+      avances: avancesCount,
+      pct: maxAvanceFisico > 0 ? `${maxAvanceFisico}%` : '-',
       mo: mano_obra,
       mat: materiales,
       cd: costo_directo,
@@ -335,20 +344,20 @@ const exportarExcel = async () => {
     }
 
     // Alineamientos de las primeras columnas
-    ['A', 'C', 'D', 'E'].forEach(col => {
+    ['A', 'C', 'D', 'E', 'F', 'G'].forEach(col => {
         row.getCell(col).alignment = { horizontal: 'center', vertical: 'middle' };
     });
     row.getCell('B').alignment = { vertical: 'middle' };
 
     // Formato de Moneda para datos financieros
-    ['F', 'G', 'H', 'I', 'J', 'K', 'L'].forEach(col => {
+    ['H', 'I', 'J', 'K', 'L', 'M', 'N'].forEach(col => {
         const cell = row.getCell(col);
         cell.numFmt = '"S/"#,##0.00';
         cell.alignment = { horizontal: 'right', vertical: 'middle' };
     });
     
     // Resaltar PRESUPUESTO TOTAL (La última columna)
-    const totalCell = row.getCell('L');
+    const totalCell = row.getCell('N');
     totalCell.font = { name: 'Arial', size: 10, bold: true, color: { argb: 'FF0F172A' } };
     totalCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
   });
