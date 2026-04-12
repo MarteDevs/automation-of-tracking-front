@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted, ref, computed } from 'vue';
 import { useProyectosStore } from '@/stores/proyectos';
+import * as XLSX from 'xlsx';
 
 const store = useProyectosStore();
 
@@ -241,6 +242,79 @@ const limpiarFiltros = () => {
   filtroAnio.value = '';
   ordenarPor.value = 'reciente';
 };
+
+const exportarExcel = () => {
+  if (proyectosFiltrados.value.length === 0) {
+    showToast('No hay proyectos para exportar.', 'info');
+    return;
+  }
+  
+  const datosParaExcel = proyectosFiltrados.value.map(p => {
+    const mano_obra = (p.mano_de_obra || []).reduce((acc: number, mo: any) => acc + (mo.total || 0), 0);
+    const materiales = (p.materiales || []).reduce((acc: number, mat: any) => acc + (mat.total || 0), 0);
+    
+    // Cálculos financieros
+    const costo_directo = mano_obra + materiales;
+    const utilidad_moneda = costo_directo * 0.10;
+    const otros_moneda = costo_directo * 0.05;
+    const costos_indirectos = utilidad_moneda + otros_moneda;
+    const subtotal = costo_directo + costos_indirectos;
+    const igv = subtotal * 0.18;
+    const presupuesto_total = subtotal + igv;
+    
+    const estado = isProjectCompleted(p) ? 'COMPLETADO' : 'EN EJECUCIÓN';
+    const avancesCount = p.avances ? p.avances.length : 0;
+    const maxAvanceFisico = p.avances ? Math.max(...p.avances.map((a: any) => a.porcentaje_avance || 0)) : 0;
+    
+    return {
+      'ID Control': p.id,
+      'Nombre del Proyecto': p.nombre_proyecto,
+      'Fecha Presupuestada': p.fecha,
+      'Estado': estado,
+      'Duración Estimada': p.semanas_estimadas ? `${p.semanas_estimadas} ${p.tipo_duracion || 'SEMANAS'}` : '-',
+      'Avances Registrados': avancesCount,
+      'Progreso Físico Máx.': maxAvanceFisico > 0 ? `${maxAvanceFisico}%` : '-',
+      'Mano de Obra (S/)': Number(mano_obra.toFixed(2)),
+      'Materiales (S/)': Number(materiales.toFixed(2)),
+      'COSTO DIRECTO (S/)': Number(costo_directo.toFixed(2)),
+      'Utilidad 10% (S/)': Number(utilidad_moneda.toFixed(2)),
+      'Gastos Generales 5% (S/)': Number(otros_moneda.toFixed(2)),
+      'SUBTOTAL (S/)': Number(subtotal.toFixed(2)),
+      'IGV 18% (S/)': Number(igv.toFixed(2)),
+      'PRESUPUESTO TOTAL (S/)': Number(presupuesto_total.toFixed(2))
+    };
+  });
+  
+  const ws = XLSX.utils.json_to_sheet(datosParaExcel);
+  
+  // Ancho de columnas
+  ws['!cols'] = [
+    { wch: 10 }, // ID
+    { wch: 50 }, // Nombre
+    { wch: 18 }, // Fecha
+    { wch: 15 }, // Estado
+    { wch: 18 }, // Duracion
+    { wch: 18 }, // Avances
+    { wch: 20 }, // Progreso
+    { wch: 18 }, // MO
+    { wch: 18 }, // MAT
+    { wch: 20 }, // CD
+    { wch: 16 }, // Uti
+    { wch: 25 }, // GG
+    { wch: 18 }, // Sub
+    { wch: 15 }, // IGV
+    { wch: 22 }  // Total
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Proyectos");
+  
+  const d = new Date();
+  const dateStr = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  
+  XLSX.writeFile(wb, `Reporte_Proyectos_Derek_${dateStr}.xlsx`);
+  showToast('✔ Excel generado y descargando correctamente.', 'success');
+};
 </script>
 
 <template>
@@ -342,9 +416,14 @@ const limpiarFiltros = () => {
   <div>
     <div class="d-flex justify-content-between align-items-center mb-4 mt-2 px-2">
       <h2 class="mb-0 fw-bold"><i class="bi bi-grid text-primary me-2"></i> Mis Proyectos</h2>
-      <RouterLink to="/upload" class="btn btn-primary d-none d-md-inline-block">
-        + Nuevo Control
-      </RouterLink>
+      <div class="d-flex gap-2">
+        <button @click="exportarExcel" class="btn btn-outline-success bg-success bg-opacity-10 d-none d-md-flex align-items-center gap-2 fw-semibold px-3 shadow-sm transition-all border-success border-opacity-50">
+          <i class="bi bi-file-earmark-excel-fill text-success"></i> Exportar
+        </button>
+        <RouterLink to="/upload" class="btn btn-primary d-none d-md-inline-block shadow-sm">
+          <i class="bi bi-plus-lg me-1"></i> Control
+        </RouterLink>
+      </div>
     </div>
 
     <!-- ── BARRA DE FILTROS ── -->
