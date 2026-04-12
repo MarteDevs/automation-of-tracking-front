@@ -157,8 +157,9 @@ export const useProyectosStore = defineStore('proyectos', {
         throw err;
       }
     },
-    async fetchPdfBlob(proyectoId: number, avanceId: number): Promise<Blob> {
-      const response = await api.get(`/proyectos/${proyectoId}/avances/${avanceId}/descargar-pdf`, {
+    async fetchPdfBlob(proyectoId: number, avanceId: number, regenerar: boolean = false): Promise<Blob> {
+      const url = regenerar ? `/proyectos/${proyectoId}/avances/${avanceId}/descargar-pdf?regenerar=true` : `/proyectos/${proyectoId}/avances/${avanceId}/descargar-pdf`;
+      const response = await api.get(url, {
         responseType: 'blob'
       });
       return new Blob([response.data], { type: 'application/pdf' });

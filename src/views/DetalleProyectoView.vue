@@ -415,12 +415,15 @@ const descargarBalanceGlobal = async () => {
   }
 };
 
-const verPDF = async (avanceId: number) => {
+const verPDF = async (avanceId: number, forceRegenerate: boolean = false) => {
   const pId = Number(route.params.id);
   if (!pId || !avanceId) return;
   generandoPDF.value = true;
   try {
-    const blob = await store.fetchPdfBlob(pId, avanceId);
+    if (forceRegenerate) {
+        showToast('Iniciando Inteligencia Artificial, esto tomará unos 10 segundos...', 'info');
+    }
+    const blob = await store.fetchPdfBlob(pId, avanceId, forceRegenerate);
     if (currentPdfUrl.value) window.URL.revokeObjectURL(currentPdfUrl.value);
     currentPdfUrl.value = window.URL.createObjectURL(blob);
     
@@ -428,11 +431,11 @@ const verPDF = async (avanceId: number) => {
     pdfModalTitle.value = `Reporte ${avance?.tipo_periodo === 'SEMANA' ? 'Semana' : 'Día'} ${avance?.semana}`;
     showPdfModal.value = true;
     
-    // Si era nuevo y se generó, refrescamos el estado del botón descargar
-    if (!avance?.ruta_pdf) await store.fetchProyectoActivo(pId);
+    // Si era nuevo y se generó, o si se forzó regenerar, refrescamos el estado del botón descargar
+    if (!avance?.ruta_pdf || forceRegenerate) await store.fetchProyectoActivo(pId);
     
   } catch {
-    showToast('Error al visualizar el PDF.', 'danger');
+    showToast('Error al procesar o visualizar el PDF.', 'danger');
   } finally {
     generandoPDF.value = false;
   }
@@ -839,14 +842,24 @@ const ejecutarEliminacion = async () => {
                   <button @click="eliminarAvance(av.id!)" class="btn btn-sm btn-link text-danger text-decoration-none opacity-50 hover-opacity-100" title="Eliminar Seguimiento">
                     <i class="bi bi-trash3"></i>
                   </button>
-                  <button @click="verPDF(av.id!)" :disabled="generandoPDF"
-                    class="btn btn-sm d-inline-flex align-items-center fw-bold transition-all px-3 rounded-pill"
-                    :class="av.ruta_pdf ? 'btn-info bg-opacity-75 text-white' : 'btn-outline-secondary opacity-75'"
-                  >
-                    <span v-if="generandoPDF" class="spinner-border spinner-border-sm me-2"></span>
-                    <i v-else class="bi bi-eye-fill me-2" :class="av.ruta_pdf ? 'text-white' : 'text-muted'"></i>
-                    {{ generandoPDF ? 'Procesando...' : (av.ruta_pdf ? 'Ver Reporte' : 'Generar y Ver Reporte') }}
-                  </button>
+                  <template v-if="av.ruta_pdf">
+                      <button @click="verPDF(av.id!, true)" :disabled="generandoPDF"
+                        class="btn btn-sm btn-outline-warning text-white bg-opacity-10 d-inline-flex align-items-center fw-bold transition-all px-3 rounded-pill"
+                        title="Re-ejecutar Inteligencia Artificial e ignorar el cache actual.">
+                        <i class="bi bi-arrow-clockwise me-1"></i> Regenerar
+                      </button>
+                      <button @click="verPDF(av.id!, false)" :disabled="generandoPDF"
+                        class="btn btn-sm btn-info bg-opacity-75 text-white d-inline-flex align-items-center fw-bold transition-all px-3 rounded-pill">
+                        <i class="bi bi-eye-fill me-2 text-white"></i> Ver Reporte
+                      </button>
+                  </template>
+                  <template v-else>
+                      <button @click="verPDF(av.id!, false)" :disabled="generandoPDF"
+                        class="btn btn-sm btn-outline-info text-info d-inline-flex align-items-center fw-bold transition-all px-3 rounded-pill border-2">
+                        <span v-if="generandoPDF" class="spinner-border spinner-border-sm me-2 text-info"></span>
+                        <i v-else class="bi bi-magic me-2 text-info"></i> Generar Reporte PDF
+                      </button>
+                  </template>
                 </div>
               </div>
             </div>
