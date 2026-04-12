@@ -612,11 +612,11 @@ const ejecutarEliminacion = async () => {
         <p class="text-muted"><i class="bi bi-calendar3"></i> Fecha Presupuestada: {{ store.proyectoActivo.fecha }}</p>
       </div>
       <div class="d-flex gap-3 align-items-center flex-wrap">
-        <div class="d-flex gap-2">
+        <div class="d-flex gap-2" v-if="false">
           <button 
             @click="verBalanceGlobal" 
             class="btn fw-semibold align-items-center d-flex gap-2 text-white border-0 transition-all shadow-sm"
-            :style="store.proyectoActivo.ruta_pdf 
+            :style="store.proyectoActivo?.ruta_pdf 
               ? 'background: linear-gradient(135deg, #0284c7, #0369a1);' 
               : 'background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1) !important;'"
             title="Previsualizar Balance Acumulado"
@@ -624,8 +624,8 @@ const ejecutarEliminacion = async () => {
           >
             <i v-if="generandoPDF" class="spinner-border spinner-border-sm text-info"></i>
             <template v-else>
-              <i class="bi bi-eye-fill fs-5" :class="store.proyectoActivo.ruta_pdf ? 'text-white' : 'text-muted'"></i> 
-              <span :class="store.proyectoActivo.ruta_pdf ? 'text-white' : 'text-muted'">Ver Balance Acumulado</span>
+              <i class="bi bi-eye-fill fs-5" :class="store.proyectoActivo?.ruta_pdf ? 'text-white' : 'text-muted'"></i> 
+              <span :class="store.proyectoActivo?.ruta_pdf ? 'text-white' : 'text-muted'">Ver Balance Acumulado</span>
             </template>
           </button>
         </div>

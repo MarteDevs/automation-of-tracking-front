@@ -470,7 +470,7 @@ const limpiarFiltros = () => {
               </div>
               <div v-else class="text-muted small">Sin reportes aún</div>
 
-              <div class="d-flex flex-column gap-1 align-items-end">
+              <div class="d-flex flex-column gap-1 align-items-end" v-if="false">
                 <span class="text-muted" style="font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.5px;">Balance Global</span>
                 <button @click.prevent="verBalanceGlobal(proyecto)" 
                   class="btn btn-sm d-flex align-items-center gap-2 px-3 rounded-pill transition-all" 
