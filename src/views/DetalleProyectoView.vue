@@ -923,34 +923,48 @@ const ejecutarEliminacion = async () => {
                       <i class="bi bi-plus fw-bold"></i>
                     </button>
                   </label>
-                  <div v-for="(cons, index) in nuevoAvance.consumos_materiales" :key="index" class="d-flex gap-2 mb-2">
-                    <div class="search-dropdown-container">
-                      <input type="text" 
-                        class="form-control form-control-sm bg-dark text-white border-secondary w-100"
-                        placeholder="Buscar o seleccionar..."
-                        v-model="cons.busqueda"
-                        @focus="cons.showDropdown = true"
-                        @blur="ocultarDropdown(index)"
-                        required>
-                      <ul v-if="cons.showDropdown" class="search-results-list shadow-lg">
-                        <li v-for="mat in materialesFiltradosPorFila(index)" 
-                            :key="mat.descripcion" 
-                            class="search-item"
-                            @click="seleccionarMaterial(index, mat)">
-                          <span class="fw-bold">{{ mat.descripcion }}</span>
-                          <span class="stock-tag ms-2 fw-normal">({{ mat.unidad }} - Disp: {{ mat.restante }})</span>
-                        </li>
-                        <li v-if="materialesFiltradosPorFila(index).length === 0" class="search-item text-muted text-center py-3">
-                          <i class="bi bi-exclamation-circle me-1"></i> Sin resultados o stock agotado
-                        </li>
-                      </ul>
+                  <div v-for="(cons, index) in nuevoAvance.consumos_materiales" :key="index" class="mb-3 p-2 rounded" style="background: rgba(0,0,0,0.15); border: 1px dashed rgba(255,255,255,0.2);">
+                    <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
+                      <div class="search-dropdown-container w-100">
+                        <input type="text" 
+                          class="form-control form-control-sm bg-dark text-white border-secondary w-100"
+                          placeholder="Buscar insumo o material..."
+                          v-model="cons.busqueda"
+                          @focus="cons.showDropdown = true"
+                          @blur="ocultarDropdown(index)"
+                          required>
+                        <ul v-if="cons.showDropdown" class="search-results-list shadow-lg custom-dropdown-width">
+                          <li v-for="mat in materialesFiltradosPorFila(index)" 
+                              :key="mat.descripcion" 
+                              class="search-item"
+                              @click="seleccionarMaterial(index, mat)">
+                            <span class="fw-bold">{{ mat.descripcion }}</span>
+                            <span class="stock-tag ms-2 fw-normal text-warning">({{ mat.unidad }} - Disp: {{ mat.restante }})</span>
+                          </li>
+                          <li v-if="materialesFiltradosPorFila(index).length === 0" class="search-item text-muted text-center py-3">
+                            <i class="bi bi-exclamation-circle me-1"></i> Sin resultados o stock agotado
+                          </li>
+                        </ul>
+                      </div>
+                      <button type="button" class="btn btn-sm btn-outline-danger px-2 d-flex align-items-center" @click="nuevoAvance.consumos_materiales.splice(index, 1)" title="Eliminar material">
+                        <i class="bi bi-trash3"></i>
+                      </button>
                     </div>
-                    <input type="number" step="0.01" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" 
-                      style="width: 70px;" placeholder="Cant." v-model="cons.cantidad_usada" 
-                      :max="obtenerRestanteNumerico(cons.nombre_material)" required>
-                    <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary text-center px-1" style="width: 55px;" placeholder="Und." v-model="cons.unidad" readonly title="Unidad">
-                    <input type="text" class="form-control form-control-sm bg-dark text-info border-secondary text-center px-1" style="width: 90px;" :value="obtenerCantidadRestante(cons.nombre_material)" readonly title="Cantidad restante disponible" placeholder="Tope">
-                    <button type="button" class="btn btn-sm btn-outline-danger px-2" @click="nuevoAvance.consumos_materiales.splice(index, 1)"><i class="bi bi-x"></i></button>
+                    
+                    <div class="d-flex gap-2">
+                      <div class="input-group input-group-sm flex-fill">
+                        <span class="input-group-text bg-dark text-muted border-secondary px-2">Cant</span>
+                        <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary text-end px-2" v-model="cons.cantidad_usada" :max="obtenerRestanteNumerico(cons.nombre_material)" placeholder="0.00" required>
+                      </div>
+                      <div class="input-group input-group-sm flex-fill">
+                        <span class="input-group-text bg-dark text-muted border-secondary px-2">Und</span>
+                        <input type="text" class="form-control bg-dark text-white border-secondary text-center px-1" v-model="cons.unidad" readonly placeholder="-">
+                      </div>
+                      <div class="input-group input-group-sm flex-fill">
+                        <span class="input-group-text bg-dark text-muted border-secondary px-2">Disp</span>
+                        <input type="text" class="form-control bg-dark text-info border-secondary text-center px-1 fw-bold" :value="obtenerRestanteNumerico(cons.nombre_material) === 999999 ? '-' : obtenerRestanteNumerico(cons.nombre_material)" readonly>
+                      </div>
+                    </div>
                   </div>
                   <div v-if="nuevoAvance.consumos_materiales.length === 0" class="small text-muted fst-italic"><i class="bi bi-info-circle me-1"></i> Opcional: Registre los insumos consumidos.</div>
                 </div>
@@ -1127,13 +1141,16 @@ const ejecutarEliminacion = async () => {
 /* ── Searchable Dropdown ── */
 .search-dropdown-container {
   position: relative;
-  flex: 3;
+  flex: 1;
 }
 .search-results-list {
   position: absolute;
   top: 100%;
   left: 0;
-  right: 0;
+  min-width: 100%;
+  width: max-content;
+  max-width: 85vw; /* Prevent screen overflow entirely */
+
   z-index: 1000;
   background: #1a202c;
   border: 1px solid rgba(255, 255, 255, 0.1);
