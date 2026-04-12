@@ -71,6 +71,11 @@ const obtenerUltimoAvance = (proyecto: any) => {
   return [...proyecto.avances].sort((a, b) => b.semana - a.semana)[0];
 };
 
+const isProjectCompleted = (proyecto: any) => {
+  if (!proyecto.avances || proyecto.avances.length === 0) return false;
+  return Math.max(...proyecto.avances.map((a: any) => a.porcentaje_avance || 0)) >= 100;
+};
+
 const verUltimoReporteSemanal = async (proyecto: any) => {
   const ultimo = obtenerUltimoAvance(proyecto);
   if (!ultimo) return;
@@ -434,16 +439,22 @@ const limpiarFiltros = () => {
 
     <div v-else class="row g-4">
       <div class="col-12 col-md-6 col-lg-4" v-for="proyecto in proyectosFiltrados" :key="proyecto.id">
-        <div class="card glass-panel h-100 p-2 overflow-hidden position-relative border-top-0 border-start-0 border-end-0 border-bottom border-primary border-4 text-decoration-none">
+        <div class="card glass-panel h-100 p-2 overflow-hidden position-relative border-top-0 border-start-0 border-end-0 border-bottom border-4 text-decoration-none"
+             :class="isProjectCompleted(proyecto) ? 'border-success' : 'border-primary'">
           <div class="card-body">
             <div class="position-relative">
               <button @click.prevent="abrirModalEliminar(proyecto.id)" class="btn btn-link text-danger p-0 border-0 text-decoration-none opacity-50 hover-opacity-100 position-absolute top-0 end-0" title="Eliminar Proyecto">
                 <i class="bi bi-trash3 fs-5"></i>
               </button>
-              <h5 class="card-title fw-bold pe-4 mb-1" style="line-height:1.35; word-break:break-word;">
+              <h5 class="card-title fw-bold pe-4 mb-2" style="line-height:1.35; word-break:break-word;">
                 {{ proyecto.nombre_proyecto }}
               </h5>
-              <p class="text-muted small mb-3"><i class="bi bi-calendar3"></i> {{ proyecto.fecha }}</p>
+              <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                <p class="text-muted small mb-0"><i class="bi bi-calendar3"></i> {{ proyecto.fecha }}</p>
+                <div v-if="isProjectCompleted(proyecto)" class="badge bg-success bg-opacity-25 text-success border border-success border-opacity-50 px-2 py-1 shadow-sm d-flex align-items-center gap-1">
+                  <i class="bi bi-check-circle-fill"></i> COMPLETADO
+                </div>
+              </div>
             </div>
             
             <div class="d-flex justify-content-between mt-3 px-1">
