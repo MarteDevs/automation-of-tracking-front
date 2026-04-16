@@ -71,6 +71,7 @@ const inputFecha = ref<HTMLInputElement | null>(null);
 const inputDias = ref<HTMLInputElement | null>(null);
 const inputObs = ref<HTMLTextAreaElement | null>(null);
 const fotoInput = ref<HTMLInputElement | null>(null);
+const facturaInput = ref<HTMLInputElement | null>(null);
 const submitBtn = ref<HTMLButtonElement | null>(null);
 
 // Refs dinámicos para los inputs de materiales (indexados por fila)
@@ -102,8 +103,13 @@ const scrollHighlightedIntoView = (index: number) => {
   });
 };
 
-// Navegar: Enter en foto → agregar material y enfocar su búsqueda
-const navegarFotoAMaterial = () => {
+// Navegar: Enter en foto → ir al input de facturas
+const navegarFotoAFactura = () => {
+  facturaInput.value?.focus();
+};
+
+// Navegar: Enter en facturas → agregar material y enfocar su búsqueda
+const navegarFacturaAMaterial = () => {
   agregarConsumoNuevo();
   nextTick(() => {
     const idx = nuevoAvance.value.consumos_materiales.length - 1;
@@ -179,9 +185,9 @@ const onFacturasSelected = (e: Event) => {
     if (tooBig.length > 0) showToast(`Se omitieron facturas por superar 50MB.`, 'danger');
     
     const validFiles = arr.filter(f => f.size <= MAX_UPLOAD_SIZE);
-    if (validFiles.length > 4) {
-      showToast('Máximo 4 facturas por avance.', 'info');
-      facturasFiles.value = validFiles.slice(0, 4);
+    if (validFiles.length > 10) {
+      showToast('Máximo 10 facturas por avance. Se tomaron las 10 primeras.', 'info');
+      facturasFiles.value = validFiles.slice(0, 10);
     } else {
       facturasFiles.value = validFiles;
       if (validFiles.length > 0) showToast(`${validFiles.length} factura(s) lista(s).`, 'info');
@@ -1140,15 +1146,17 @@ const ejecutarEliminacion = async () => {
                 <div class="mb-3">
                   <label class="form-label small">Adjuntar Fotografías Técnicas (Máx 4, hasta 50MB c/u)</label>
                   <input type="file" id="fotoInput" ref="fotoInput" class="form-control mb-1 text-muted" accept=".png, .jpg, .jpeg, image/png, image/jpeg" multiple @change="onFileSelected"
-                    @keydown.enter.prevent="navegarFotoAMaterial">
+                    @keydown.enter.prevent="navegarFotoAFactura">
                   <div v-if="evidenciaFiles.length > 0" class="text-info small">
                     <i class="bi bi-image"></i> {{ evidenciaFiles.length }} foto(s) técnica(s) lista(s).
                   </div>
                 </div>
 
                 <div class="mb-3">
-                  <label class="form-label small">Adjuntar Facturas / Comprobantes (Máx 4, hasta 50MB c/u)</label>
-                  <input type="file" id="facturaInput" class="form-control mb-1 bg-dark text-muted border-secondary" accept=".png, .jpg, .jpeg, image/png, image/jpeg" multiple @change="onFacturasSelected">
+                  <label class="form-label small">Adjuntar Facturas / Comprobantes (Máx 10, hasta 50MB c/u)</label>
+                  <input type="file" id="facturaInput" ref="facturaInput" class="form-control mb-1 bg-dark text-muted border-secondary" accept=".png, .jpg, .jpeg, image/png, image/jpeg" multiple
+                    @change="onFacturasSelected"
+                    @keydown.enter.prevent="navegarFacturaAMaterial">
                   <div v-if="facturasFiles.length > 0" class="text-warning small mt-1">
                     <i class="bi bi-receipt"></i> {{ facturasFiles.length }} factura(s) lista(s) para anexar.
                   </div>
