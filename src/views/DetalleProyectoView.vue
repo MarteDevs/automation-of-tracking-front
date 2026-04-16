@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref, computed, watch } from 'vue';
+import { onMounted, ref, computed, watch, nextTick } from 'vue';
 import { useRoute } from 'vue-router';
 import { useProyectosStore } from '@/stores/proyectos';
 
@@ -67,6 +67,45 @@ const inputDias = ref<HTMLInputElement | null>(null);
 const inputObs = ref<HTMLTextAreaElement | null>(null);
 const fotoInput = ref<HTMLInputElement | null>(null);
 const submitBtn = ref<HTMLButtonElement | null>(null);
+
+// Refs dinámicos para los inputs de materiales (indexados por fila)
+const materialSearchRefs = ref<(HTMLInputElement | null)[]>([]);
+const materialCantidadRefs = ref<(HTMLInputElement | null)[]>([]);
+
+const setMaterialSearchRef = (el: any, index: number) => {
+  materialSearchRefs.value[index] = el as HTMLInputElement | null;
+};
+const setMaterialCantidadRef = (el: any, index: number) => {
+  materialCantidadRefs.value[index] = el as HTMLInputElement | null;
+};
+
+// Navegar: Enter en foto → agregar material y enfocar su búsqueda
+const navegarFotoAMaterial = () => {
+  agregarConsumoNuevo();
+  nextTick(() => {
+    const idx = nuevoAvance.value.consumos_materiales.length - 1;
+    materialSearchRefs.value[idx]?.focus();
+  });
+};
+
+// Enter en búsqueda → si material seleccionado, ir a cantidad
+const navegarBusquedaACantidad = (index: number) => {
+  const cons = nuevoAvance.value.consumos_materiales[index];
+  if (!cons) return;
+  if (cons.nombre_material) {
+    cons.showDropdown = false;
+    nextTick(() => materialCantidadRefs.value[index]?.focus());
+  }
+};
+
+// Enter en cantidad → agregar nuevo material y enfocar su búsqueda
+const navegarCantidadANuevoMaterial = () => {
+  agregarConsumoNuevo();
+  nextTick(() => {
+    const idx = nuevoAvance.value.consumos_materiales.length - 1;
+    materialSearchRefs.value[idx]?.focus();
+  });
+};
 
 const onFileSelected = (e: Event) => {
   const target = e.target as HTMLInputElement;
@@ -922,7 +961,7 @@ const ejecutarEliminacion = async () => {
                 <div class="mb-3">
                   <label class="form-label small">Adjuntar Fotografías (Máx 4, JPG/JPEG/PNG, hasta 5MB c/u)</label>
                   <input type="file" id="fotoInput" ref="fotoInput" class="form-control text-muted" accept=".png, .jpg, .jpeg, image/png, image/jpeg" multiple @change="onFileSelected"
-                    @keydown.enter.prevent="submitBtn?.focus()">
+                    @keydown.enter.prevent="navegarFotoAMaterial">
                   <div v-if="evidenciaFiles.length > 0" class="mt-1 text-info small">
                     <i class="bi bi-paperclip"></i> {{ evidenciaFiles.length }} archivo(s) listo(s) para subir
                   </div>
@@ -943,8 +982,10 @@ const ejecutarEliminacion = async () => {
                           class="form-control form-control-sm bg-dark text-white border-secondary w-100"
                           placeholder="Buscar insumo o material..."
                           v-model="cons.busqueda"
+                          :ref="(el) => setMaterialSearchRef(el, index)"
                           @focus="cons.showDropdown = true"
                           @blur="ocultarDropdown(index)"
+                          @keydown.enter.prevent="navegarBusquedaACantidad(index)"
                           required>
                         <ul v-if="cons.showDropdown" class="search-results-list shadow-lg custom-dropdown-width">
                           <li v-for="mat in materialesFiltradosPorFila(index)" 
@@ -967,7 +1008,12 @@ const ejecutarEliminacion = async () => {
                     <div class="d-flex gap-2">
                       <div class="input-group input-group-sm flex-fill">
                         <span class="input-group-text bg-dark text-muted border-secondary px-2">Cant</span>
-                        <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary text-end px-2" v-model="cons.cantidad_usada" :max="obtenerRestanteNumerico(cons.nombre_material)" placeholder="0.00" required>
+                        <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary text-end px-2"
+                          v-model="cons.cantidad_usada"
+                          :max="obtenerRestanteNumerico(cons.nombre_material)"
+                          :ref="(el) => setMaterialCantidadRef(el, index)"
+                          @keydown.enter.prevent="navegarCantidadANuevoMaterial"
+                          placeholder="0.00" required>
                       </div>
                       <div class="input-group input-group-sm flex-fill">
                         <span class="input-group-text bg-dark text-muted border-secondary px-2">Und</span>
