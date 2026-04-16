@@ -19,7 +19,8 @@ const nuevoAvance = ref({
     cantidad_usada: number | null, 
     unidad: string, 
     busqueda?: string, 
-    showDropdown?: boolean 
+    showDropdown?: boolean,
+    highlightedIndex?: number
   }[]
 });
 
@@ -88,10 +89,31 @@ const navegarFotoAMaterial = () => {
   });
 };
 
-// Enter en búsqueda → si material seleccionado, ir a cantidad
+// Enter en búsqueda → selecciona el ítem resaltado con flechas, o navega a cantidad si ya hay uno
 const navegarBusquedaACantidad = (index: number) => {
   const cons = nuevoAvance.value.consumos_materiales[index];
   if (!cons) return;
+
+  const lista = materialesFiltradosPorFila(index);
+  const hi = cons.highlightedIndex ?? -1;
+
+  // Primero: si hay un ítem resaltado con las flechas, seleccionarlo
+  if (hi >= 0 && lista[hi]) {
+    seleccionarMaterial(index, lista[hi]);
+    cons.highlightedIndex = -1;
+    nextTick(() => materialCantidadRefs.value[index]?.focus());
+    return;
+  }
+
+  // Segundo: si el dropdown tiene solo un resultado, seleccionarlo automáticamente
+  if (lista.length === 1 && cons.busqueda?.trim()) {
+    seleccionarMaterial(index, lista[0]);
+    cons.highlightedIndex = -1;
+    nextTick(() => materialCantidadRefs.value[index]?.focus());
+    return;
+  }
+
+  // Tercero: si ya hay un material elegido (click previo), ir a cantidad
   if (cons.nombre_material) {
     cons.showDropdown = false;
     nextTick(() => materialCantidadRefs.value[index]?.focus());
@@ -298,7 +320,8 @@ const agregarConsumoNuevo = () => {
     cantidad_usada: null as any,
     unidad: '',
     busqueda: '',
-    showDropdown: false
+    showDropdown: false,
+    highlightedIndex: -1
   });
 };
 
@@ -314,8 +337,28 @@ const seleccionarMaterial = (index: number, mat: any) => {
 const ocultarDropdown = (index: number) => {
   setTimeout(() => {
     const cons = nuevoAvance.value.consumos_materiales[index];
-    if (cons) cons.showDropdown = false;
+    if (cons) { cons.showDropdown = false; cons.highlightedIndex = -1; }
   }, 200);
+};
+
+// Navegar dropdown con flechas ↓↑
+const navegarDropdownAbajo = (index: number) => {
+  const cons = nuevoAvance.value.consumos_materiales[index];
+  if (!cons) return;
+  cons.showDropdown = true;
+  const lista = materialesFiltradosPorFila(index);
+  if (lista.length === 0) return;
+  cons.highlightedIndex = ((cons.highlightedIndex ?? -1) + 1) % lista.length;
+};
+
+const navegarDropdownArriba = (index: number) => {
+  const cons = nuevoAvance.value.consumos_materiales[index];
+  if (!cons) return;
+  cons.showDropdown = true;
+  const lista = materialesFiltradosPorFila(index);
+  if (lista.length === 0) return;
+  const cur = cons.highlightedIndex ?? -1;
+  cons.highlightedIndex = cur <= 0 ? lista.length - 1 : cur - 1;
 };
 
 const actualizarUnidad = (idx: number) => {
@@ -985,13 +1028,17 @@ const ejecutarEliminacion = async () => {
                           :ref="(el) => setMaterialSearchRef(el, index)"
                           @focus="cons.showDropdown = true"
                           @blur="ocultarDropdown(index)"
+                          @input="cons.highlightedIndex = -1"
+                          @keydown.arrow-down.prevent="navegarDropdownAbajo(index)"
+                          @keydown.arrow-up.prevent="navegarDropdownArriba(index)"
                           @keydown.enter.prevent="navegarBusquedaACantidad(index)"
                           required>
                         <ul v-if="cons.showDropdown" class="search-results-list shadow-lg custom-dropdown-width">
-                          <li v-for="mat in materialesFiltradosPorFila(index)" 
+                          <li v-for="(mat, matIdx) in materialesFiltradosPorFila(index)" 
                               :key="mat.descripcion" 
                               class="search-item"
-                              @click="seleccionarMaterial(index, mat)">
+                              :class="{ 'search-item-highlighted': cons.highlightedIndex === matIdx }"
+                              @mousedown.prevent="seleccionarMaterial(index, mat)">
                             <span class="fw-bold">{{ mat.descripcion }}</span>
                             <span class="stock-tag ms-2 fw-normal text-warning">({{ mat.unidad }} - Disp: {{ mat.restante }})</span>
                           </li>
@@ -1232,6 +1279,13 @@ const ejecutarEliminacion = async () => {
 .search-item:hover {
   background: rgba(59, 130, 246, 0.2);
   color: #fff;
+}
+/* Resaltado con teclado (flechas ↑↓) — distinto al hover */
+.search-item-highlighted {
+  background: rgba(59, 130, 246, 0.35) !important;
+  color: #fff !important;
+  border-left: 3px solid #3b82f6;
+  padding-left: 9px; /* compensar border */
 }
 .search-item:last-child {
   border-bottom: none;
