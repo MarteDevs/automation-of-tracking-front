@@ -1272,19 +1272,16 @@ const ejecutarEliminacion = async () => {
 }
 .search-results-list {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 4px);
   left: 0;
-  min-width: 100%;
-  width: max-content;
-  max-width: 85vw; /* Prevent screen overflow entirely */
-
+  width: 100%; /* Se adapta exactamente al ancho del input */
   z-index: 1000;
   background: #1a202c;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  margin-top: 4px;
   max-height: 250px;
   overflow-y: auto;
+  overflow-x: hidden;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
   padding: 0;
   list-style: none;
@@ -1296,6 +1293,11 @@ const ejecutarEliminacion = async () => {
   transition: all 0.2s ease;
   font-size: 0.85rem;
   color: #e2e8f0;
+  
+  /* Permitir que el texto largo (nombres de materiales) se acomode hacia abajo */
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.4;
 }
 .search-item:hover {
   background: rgba(59, 130, 246, 0.2);
