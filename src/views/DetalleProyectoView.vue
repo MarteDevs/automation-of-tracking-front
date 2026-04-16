@@ -1331,4 +1331,14 @@ const ejecutarEliminacion = async () => {
 .search-results-list::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* Ocultar flechas spinners de inputs numéricos en los campos de materiales */
+.input-group input[type="number"]::-webkit-inner-spin-button,
+.input-group input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.input-group input[type="number"] {
+  -moz-appearance: textfield;
+}
 </style>
