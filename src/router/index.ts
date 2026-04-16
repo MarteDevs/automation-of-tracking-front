@@ -32,19 +32,20 @@ const router = createRouter({
 })
 
 // === CUSTODIO DE NAVEGACION WEB (Navigation Guard) ===
-router.beforeEach((to, from, next) => {
+router.beforeEach((to) => {
   const isAuth = !!localStorage.getItem('token');
   
   if (to.meta.requiresAuth && !isAuth) {
     // Intenta entrar sin token -> Desviado al login
-    next({ name: 'login' });
-  } else if (to.name === 'login' && isAuth) {
-    // Intenta ir al login cuando ya esta logeado -> devuelto al dashboard
-    next({ name: 'home' });
-  } else {
-    // Continua el pase
-    next();
+    return { name: 'login' };
   }
+  
+  if (to.name === 'login' && isAuth) {
+    // Intenta ir al login cuando ya esta logeado -> devuelto al dashboard
+    return { name: 'home' };
+  }
+  
+  return true;
 })
 
 export default router

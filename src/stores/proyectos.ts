@@ -160,11 +160,44 @@ export const useProyectosStore = defineStore('proyectos', {
       }
     },
     async fetchPdfBlob(proyectoId: number, avanceId: number, regenerar: boolean = false): Promise<Blob> {
-      const url = regenerar ? `/proyectos/${proyectoId}/avances/${avanceId}/descargar-pdf?regenerar=true` : `/proyectos/${proyectoId}/avances/${avanceId}/descargar-pdf`;
-      const response = await api.get(url, {
-        responseType: 'blob'
-      });
-      return new Blob([response.data], { type: 'application/pdf' });
+      // Usamos fetch() nativo en lugar de Axios/XHR para manejar
+      // respuestas binarias grandes (>5MB) sin problemas de buffering
+      const baseUrl = `/api/v1/proyectos/${proyectoId}/avances/${avanceId}/descargar-pdf`;
+      const url = regenerar ? `${baseUrl}?regenerar=true` : baseUrl;
+      console.log(`[DEBUG PDF] Solicitando BLOB via fetch() nativo: ${url}`);
+
+      const token = localStorage.getItem('token');
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/pdf'
+          }
+        });
+      } catch (networkErr: any) {
+        console.error(`[DEBUG PDF ERROR] Error de red al conectar:`, networkErr);
+        throw networkErr;
+      }
+
+      console.log(`[DEBUG PDF] HTTP Status: ${response.status} | Content-Type: ${response.headers.get('content-type')} | Content-Length: ${response.headers.get('content-length')}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[DEBUG PDF ERROR] Servidor respondió ${response.status}:`, errorText);
+        throw new Error(`Error del servidor: ${response.status} - ${errorText}`);
+      }
+
+      const blob = await response.blob();
+      console.log(`[DEBUG PDF] ✅ Blob recibido correctamente: ${blob.size} bytes, tipo: ${blob.type}`);
+
+      if (blob.size === 0) {
+        console.error(`[DEBUG PDF ERROR] El blob está vacío (0 bytes)`);
+        throw new Error('El servidor devolvió un PDF vacío.');
+      }
+
+      return new Blob([blob], { type: 'application/pdf' });
     },
     async descargarBalanceGlobalPdf(proyectoId: number) {
       this.error = null;
@@ -186,8 +219,35 @@ export const useProyectosStore = defineStore('proyectos', {
       }
     },
     async fetchBalancePdfBlob(proyectoId: number): Promise<Blob> {
-        const response = await api.get(`/proyectos/${proyectoId}/balance-pdf`, { responseType: 'blob' });
-        return new Blob([response.data], { type: 'application/pdf' });
+      // Usamos fetch() nativo para evitar problemas de buffering con archivos grandes
+      const url = `/api/v1/proyectos/${proyectoId}/balance-pdf`;
+      console.log(`[DEBUG PDF] Solicitando Balance BLOB via fetch() nativo: ${url}`);
+
+      const token = localStorage.getItem('token');
+      let response: Response;
+      try {
+        response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Accept': 'application/pdf'
+          }
+        });
+      } catch (networkErr: any) {
+        console.error(`[DEBUG BALANCE PDF ERROR] Error de red:`, networkErr);
+        throw networkErr;
+      }
+
+      console.log(`[DEBUG PDF] Balance HTTP Status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Error del servidor: ${response.status} - ${errorText}`);
+      }
+
+      const blob = await response.blob();
+      console.log(`[DEBUG PDF] ✅ Balance Blob recibido: ${blob.size} bytes`);
+      return new Blob([blob], { type: 'application/pdf' });
     },
     async uploadImagenEvidencia(files: File[]) {
       this.error = null;
@@ -233,20 +293,47 @@ export const useProyectosStore = defineStore('proyectos', {
         throw err;
       }
     },
-    async subirFotoFinal(proyectoId: number, rutaFoto: string) {
-      if (!proyectoId || !rutaFoto) return;
+    async subirFotoFinal(proyecto_id: number, rutaNueva: string) {
+      if (!proyecto_id || !rutaNueva) return;
       this.error = null;
       try {
-        const response = await api.put<Proyecto>(`/proyectos/${proyectoId}/foto-final`, {
-          ruta_foto: rutaFoto
+        // Concatenar con lo que ya existe
+        const actual = this.proyectoActivo?.ruta_foto_final || '';
+        const lista = actual ? actual.split(',').filter(x => x) : [];
+        lista.push(rutaNueva);
+        const rutaFinalConcatenada = lista.join(',');
+
+        const response = await api.put<Proyecto>(`/proyectos/${proyecto_id}/foto-final`, {
+          ruta_foto: rutaFinalConcatenada
         });
-        if (this.proyectoActivo && this.proyectoActivo.id === proyectoId) {
+        if (this.proyectoActivo && this.proyectoActivo.id === proyecto_id) {
           this.proyectoActivo.ruta_foto_final = response.data.ruta_foto_final;
           this.proyectoActivo.ruta_pdf = undefined;
         }
         return response.data;
       } catch (err: any) {
-        this.error = 'No se pudo guardar la Fotografía Final del Proyecto.';
+        this.error = 'No se pudo actualizar la Fotografía Final del Proyecto.';
+        throw err;
+      }
+    },
+    async eliminarFotoFinal(proyecto_id: number, rutaAEliminar: string) {
+      if (!proyecto_id) return;
+      this.error = null;
+      try {
+        const actual = this.proyectoActivo?.ruta_foto_final || '';
+        const lista = actual.split(',').filter(x => x && x !== rutaAEliminar);
+        const nuevaRuta = lista.join(',');
+
+        const response = await api.put<Proyecto>(`/proyectos/${proyecto_id}/foto-final`, {
+          ruta_foto: nuevaRuta
+        });
+        if (this.proyectoActivo && this.proyectoActivo.id === proyecto_id) {
+          this.proyectoActivo.ruta_foto_final = response.data.ruta_foto_final;
+          this.proyectoActivo.ruta_pdf = undefined;
+        }
+        return response.data;
+      } catch (err: any) {
+        this.error = 'No se pudo eliminar la imagen de cierre.';
         throw err;
       }
     },

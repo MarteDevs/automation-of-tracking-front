@@ -206,12 +206,14 @@ const onFotoFinalSelected = async (e: Event) => {
       showToast('La foto supera los 50MB permitidos.', 'danger');
       return;
     }
-    showToast('Subiendo Foto Final del Proyecto...', 'info');
+    showToast('Subiendo Factura Final de Entrega...', 'info');
     try {
       const pId = Number(route.params.id);
       const rutaServer = await store.uploadImagenEvidencia([file]);
       await store.subirFotoFinal(pId, rutaServer);
-      showToast('✔ Foto Final anexada correctamante al balance global.', 'success');
+      // Refrescar datos para que ultimoAvance y facturaFinalSubida estén actualizados
+      await store.fetchProyectoActivo(pId);
+      showToast('✔ Factura Final registrada. Ya puedes generar el PDF de cierre.', 'success');
       target.value = '';
     } catch {
       showToast('Error al subir la Foto Final.', 'danger');
@@ -337,6 +339,35 @@ const costosIndirectosNum = computed(() => utilidadMoneda.value + otrosMoneda.va
 const subtotalConIndirectos = computed(() => totalGeneral.value + costosIndirectosNum.value);
 const igvCalculado = computed(() => subtotalConIndirectos.value * 0.18);
 const presupuestoTotalFinal = computed(() => subtotalConIndirectos.value + igvCalculado.value);
+
+// ── Estado del Proyecto: Completado y Factura Final ──
+const proyectoCompletado = computed(() =>
+  (store.proyectoActivo?.avances ?? []).some(a => a.porcentaje_avance >= 100)
+);
+
+const facturaFinalSubida = computed(() => !!store.proyectoActivo?.ruta_foto_final);
+const listaFacturasFinales = computed(() => {
+  const ruta = store.proyectoActivo?.ruta_foto_final || '';
+  return ruta.split(',').filter(x => x && x.trim());
+});
+
+const eliminarFotoCierre = async (ruta: string) => {
+    if (!store.proyectoActivo?.id) return;
+    if (confirm('¿Está seguro de eliminar esta imagen de cierre?')) {
+        await store.eliminarFotoFinal(store.proyectoActivo.id, ruta);
+        showToast('Imagen de cierre eliminada.', 'success');
+    }
+};
+
+const abrirImagen = (ruta: string) => {
+  window.open('http://localhost:8000/' + ruta, '_blank');
+};
+
+const ultimoAvance = computed(() => {
+  const avances = store.proyectoActivo?.avances ?? [];
+  if (avances.length === 0) return null;
+  return [...avances].sort((a, b) => b.semana - a.semana)[0];
+});
 
 const guardarAvance = async () => {
   if (store.loading) return;
@@ -582,7 +613,10 @@ const verPDF = async (avanceId: number, forceRegenerate: boolean = false) => {
     if (forceRegenerate) {
         showToast('Iniciando Inteligencia Artificial, esto tomará unos 10 segundos...', 'info');
     }
+    console.log(`[DEBUG UI] Llamando a verPDF para avance ${avanceId}`);
     const blob = await store.fetchPdfBlob(pId, avanceId, forceRegenerate);
+    console.log(`[DEBUG UI] BLOB obtenido con éxito, tamaño: ${blob.size}`);
+
     if (currentPdfUrl.value) window.URL.revokeObjectURL(currentPdfUrl.value);
     currentPdfUrl.value = window.URL.createObjectURL(blob);
     
@@ -590,10 +624,10 @@ const verPDF = async (avanceId: number, forceRegenerate: boolean = false) => {
     pdfModalTitle.value = `Reporte ${avance?.tipo_periodo === 'SEMANA' ? 'Semana' : 'Día'} ${avance?.semana}`;
     showPdfModal.value = true;
     
-    // Si era nuevo y se generó, o si se forzó regenerar, refrescamos el estado del botón descargar
     if (!avance?.ruta_pdf || forceRegenerate) await store.fetchProyectoActivo(pId);
     
-  } catch {
+  } catch (err: any) {
+    console.error(`[DEBUG UI ERROR] Error al verPDF:`, err);
     showToast('Error al procesar o visualizar el PDF.', 'danger');
   } finally {
     generandoPDF.value = false;
@@ -815,16 +849,32 @@ const ejecutarEliminacion = async () => {
         <p class="text-muted"><i class="bi bi-calendar3"></i> Fecha Presupuestada: {{ store.proyectoActivo.fecha }}</p>
       </div>
       <div class="d-flex gap-3 align-items-center flex-wrap">
-        <!-- Boton de Foto Final -->
+        <!-- ── Sección Factura Final de Entrega ── -->
         <div class="text-end">
-           <label for="fotoFinalUpload" class="btn fw-bold mb-0 border-2" 
-             :class="store.proyectoActivo?.ruta_foto_final ? 'btn-outline-success text-success' : 'btn-outline-warning text-warning'">
-             <i class="bi bi-camera-fill me-1"></i> {{ store.proyectoActivo?.ruta_foto_final ? 'Actualizar Foto Final' : 'Subir Foto Final' }}
-           </label>
-           <input type="file" id="fotoFinalUpload" class="d-none" accept=".png, .jpg, .jpeg, image/png, image/jpeg" @change="onFotoFinalSelected">
-           <div v-if="store.proyectoActivo?.ruta_foto_final" class="text-success small mt-1">
-             <i class="bi bi-check-circle-fill"></i> Foto en balance global
-           </div>
+          <!-- Estado 1: Proyecto en progreso (< 100%) -->
+          <div v-if="!proyectoCompletado"
+            class="btn btn-sm fw-bold border-2 btn-outline-secondary text-secondary opacity-60"
+            style="cursor: default;"
+            title="Disponible cuando el avance llegue al 100%">
+            <i class="bi bi-lock-fill me-1"></i> Factura Final
+            <span class="badge bg-secondary ms-1" style="font-size:0.65rem;">Al 100%</span>
+          </div>
+
+          <!-- Estado 2: Completado o Cerrado → habilitar gestión de fotos -->
+          <div v-else>
+            <label for="fotoFinalUpload" class="btn btn-sm fw-bold border-2" 
+               :class="facturaFinalSubida ? 'btn-outline-success text-success' : 'btn-danger'">
+              <i class="bi" :class="facturaFinalSubida ? 'bi-plus-circle-fill' : 'bi-receipt'"></i> 
+              {{ facturaFinalSubida ? 'Agregar Firma/Factura' : 'Subir Factura Final' }}
+            </label>
+            <div v-if="facturaFinalSubida" class="text-success small mt-1">
+              <i class="bi bi-shield-fill-check me-1"></i> {{ listaFacturasFinales.length }} adjuntos de cierre
+            </div>
+          </div>
+
+          <!-- Input oculto -->
+          <input v-if="proyectoCompletado" type="file" id="fotoFinalUpload" class="d-none"
+            accept=".png, .jpg, .jpeg, image/png, image/jpeg" @change="onFotoFinalSelected">
         </div>
 
         <div class="d-flex gap-2" v-if="false">
@@ -1090,7 +1140,65 @@ const ejecutarEliminacion = async () => {
           </div>
 
           <div class="col-md-4">
-            <div class="glass-panel p-4">
+
+            <!-- ── Panel de Cierre: se muestra cuando existe evidencia de cierre ── -->
+            <div v-if="facturaFinalSubida || proyectoCompletado" class="glass-panel p-4 border border-info border-opacity-30 mb-4">
+              <div class="text-center mb-3">
+                <i class="bi" :class="proyectoCompletado ? 'bi-shield-fill-check text-success' : 'bi-award text-info'" style="font-size:2.5rem;"></i>
+                <h5 class="fw-bold mt-2" :class="proyectoCompletado ? 'text-success' : 'text-info'">
+                  {{ proyectoCompletado ? '¡Proyecto al 100%!' : 'Evidencias de Cierre' }}
+                </h5>
+              </div>
+
+              <!-- Galería de Facturas Finales -->
+              <div v-if="facturaFinalSubida" class="mb-4">
+                <label class="small text-muted mb-2 d-block">Documentos de Cierre / Facturas:</label>
+                <div class="d-flex flex-wrap gap-2">
+                  <div v-for="(img, idx) in listaFacturasFinales" :key="idx" class="position-relative">
+                    <img :src="'http://localhost:8000/' + img" 
+                      class="rounded border border-secondary border-opacity-25" 
+                      style="width: 60px; height: 60px; object-fit: cover; cursor: pointer;"
+                      @click="abrirImagen(img)">
+                    <button @click="eliminarFotoCierre(img)" 
+                      class="btn btn-danger btn-sm p-0 position-absolute top-0 end-0 rounded-circle" 
+                      style="width: 20px; height: 20px; font-size: 0.6rem; transform: translate(30%, -30%);">
+                      <i class="bi bi-x"></i>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div v-if="ultimoAvance" class="d-grid gap-2">
+                <button
+                  @click="verPDF((ultimoAvance?.id ?? 0), true)"
+                  :disabled="generandoPDF"
+                  class="btn btn-success fw-bold d-flex align-items-center justify-content-center gap-2">
+                  <span v-if="generandoPDF" class="spinner-border spinner-border-sm"></span>
+                  <i v-else class="bi bi-file-earmark-check-fill"></i>
+                  Generar Reporte Final
+                </button>
+                <button
+                  @click="compartirPorWhatsApp((ultimoAvance?.id ?? 0))"
+                  :disabled="generandoPDF"
+                  class="btn btn-outline-success fw-bold d-flex align-items-center justify-content-center gap-2">
+                  <i class="bi bi-whatsapp"></i> Compartir cierre por WhatsApp
+                </button>
+              </div>
+              
+              <div v-if="proyectoCompletado" class="mt-3 text-center">
+                <p class="text-muted small mb-0"><i class="bi bi-lock-fill me-1"></i> Registro bloqueado por avance al 100%.</p>
+              </div>
+            </div>
+
+            <!-- ── Formulario de Registro: Solo bloqueado si realmente está al 100% ── -->
+            <div v-if="!proyectoCompletado" class="glass-panel p-4">
+
+              <!-- Aviso si completado al 100% pero sin factura aún -->
+              <div v-if="proyectoCompletado && !facturaFinalSubida" class="alert alert-warning small mb-3 py-2">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                Obra al <strong>100%</strong>. Suba la Factura Final desde el encabezado para cerrar.
+              </div>
+
               <h5 class="mb-3"><i class="bi bi-plus-circle me-1"></i> Registrar Avance</h5>
               <form @submit.prevent="guardarAvance">
                 <div class="mb-3">
@@ -1235,6 +1343,8 @@ const ejecutarEliminacion = async () => {
                 </button>
               </form>
             </div>
+            <!-- fin v-else (formulario normal) -->
+
           </div>
         </div>
       </div>
