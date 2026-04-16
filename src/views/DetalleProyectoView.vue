@@ -564,6 +564,50 @@ const verBalanceGlobal = async () => {
   }
 };
 
+const compartirPorWhatsApp = async (avanceId: number) => {
+  const pId = Number(route.params.id);
+  if (!pId || !avanceId) return;
+  generandoPDF.value = true;
+  try {
+    const avance = store.proyectoActivo?.avances.find(a => a.id === avanceId);
+    const blob = await store.fetchPdfBlob(pId, avanceId, false);
+    
+    const periodoLabel = avance?.tipo_periodo === 'SEMANA' ? 'Semana' : avance?.tipo_periodo === 'DIA' ? 'Día' : 'Hora';
+    const num = avance?.semana;
+    const nombreArchivo = `Reporte_${periodoLabel}_${num}.pdf`;
+    
+    const file = new File([blob], nombreArchivo, { type: 'application/pdf' });
+    const textMsg = `Hola, adjunto el reporte de la ${periodoLabel} ${num} de la obra ${store.proyectoActivo?.nombre_proyecto}.`;
+
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: `Reporte - ${periodoLabel} ${num}`,
+        text: textMsg
+      });
+      showToast('✔ Reporte compartido exitosamente', 'success');
+    } else {
+      // Fallback para Desktop: Descarga el PDF y abre WhatsApp Web
+      const waUrl = `https://wa.me/?text=${encodeURIComponent(textMsg)}`;
+      
+      const link = document.createElement('a');
+      link.href = window.URL.createObjectURL(blob);
+      link.download = nombreArchivo;
+      link.click();
+      window.URL.revokeObjectURL(link.href);
+      
+      window.open(waUrl, '_blank');
+      showToast('Descargando archivo y abriendo WhatsApp Web...', 'info');
+    }
+  } catch (err: any) {
+    if (err.name !== 'AbortError') {
+       showToast('Error al intentar compartir.', 'danger');
+    }
+  } finally {
+    generandoPDF.value = false;
+  }
+};
+
 const cerrarVisorPDF = () => {
   showPdfModal.value = false;
   if (currentPdfUrl.value) {
@@ -945,6 +989,11 @@ const ejecutarEliminacion = async () => {
                     <i class="bi bi-trash3"></i>
                   </button>
                   <template v-if="av.ruta_pdf">
+                      <button @click="compartirPorWhatsApp(av.id!)" :disabled="generandoPDF"
+                        class="btn btn-sm btn-success bg-opacity-75 text-white d-inline-flex align-items-center fw-bold transition-all px-3 rounded-pill"
+                        title="Compartir directo a WhatsApp">
+                        <i class="bi bi-whatsapp me-2"></i> Compartir
+                      </button>
                       <button @click="verPDF(av.id!, true)" :disabled="generandoPDF"
                         class="btn btn-sm btn-outline-warning text-white bg-opacity-10 d-inline-flex align-items-center fw-bold transition-all px-3 rounded-pill"
                         title="Re-ejecutar Inteligencia Artificial e ignorar el cache actual.">
