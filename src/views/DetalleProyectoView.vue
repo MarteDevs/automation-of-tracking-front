@@ -185,9 +185,9 @@ const onFacturasSelected = (e: Event) => {
     if (tooBig.length > 0) showToast(`Se omitieron facturas por superar 50MB.`, 'danger');
     
     const validFiles = arr.filter(f => f.size <= MAX_UPLOAD_SIZE);
-    if (validFiles.length > 10) {
-      showToast('Máximo 10 facturas por avance. Se tomaron las 10 primeras.', 'info');
-      facturasFiles.value = validFiles.slice(0, 10);
+    if (validFiles.length > 15) {
+      showToast('Máximo 15 facturas por avance. Se tomaron las 15 primeras.', 'info');
+      facturasFiles.value = validFiles.slice(0, 15);
     } else {
       facturasFiles.value = validFiles;
       if (validFiles.length > 0) showToast(`${validFiles.length} factura(s) lista(s).`, 'info');
@@ -1153,7 +1153,7 @@ const ejecutarEliminacion = async () => {
                 </div>
 
                 <div class="mb-3">
-                  <label class="form-label small">Adjuntar Facturas / Comprobantes (Máx 10, hasta 50MB c/u)</label>
+                  <label class="form-label small">Adjuntar Facturas / Comprobantes (Máx 15, hasta 50MB c/u)</label>
                   <input type="file" id="facturaInput" ref="facturaInput" class="form-control mb-1 bg-dark text-muted border-secondary" accept=".png, .jpg, .jpeg, image/png, image/jpeg" multiple
                     @change="onFacturasSelected"
                     @keydown.enter.prevent="navegarFacturaAMaterial">
