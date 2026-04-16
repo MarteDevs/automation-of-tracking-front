@@ -80,6 +80,24 @@ const setMaterialCantidadRef = (el: any, index: number) => {
   materialCantidadRefs.value[index] = el as HTMLInputElement | null;
 };
 
+// Ref al <ul> del dropdown para hacer scroll automático al ítem resaltado
+const dropdownListRefs = ref<(HTMLUListElement | null)[]>([]);
+const setDropdownListRef = (el: any, index: number) => {
+  dropdownListRefs.value[index] = el as HTMLUListElement | null;
+};
+
+// Desplaza el dropdown para que el ítem resaltado sea siempre visible
+const scrollHighlightedIntoView = (index: number) => {
+  nextTick(() => {
+    const ul = dropdownListRefs.value[index];
+    const cons = nuevoAvance.value.consumos_materiales[index];
+    if (!ul || !cons || (cons.highlightedIndex ?? -1) < 0) return;
+    const items = ul.querySelectorAll<HTMLElement>('.search-item');
+    const target = items[cons.highlightedIndex!];
+    if (target) target.scrollIntoView({ block: 'nearest' });
+  });
+};
+
 // Navegar: Enter en foto → agregar material y enfocar su búsqueda
 const navegarFotoAMaterial = () => {
   agregarConsumoNuevo();
@@ -349,6 +367,7 @@ const navegarDropdownAbajo = (index: number) => {
   const lista = materialesFiltradosPorFila(index);
   if (lista.length === 0) return;
   cons.highlightedIndex = ((cons.highlightedIndex ?? -1) + 1) % lista.length;
+  scrollHighlightedIntoView(index);
 };
 
 const navegarDropdownArriba = (index: number) => {
@@ -359,6 +378,7 @@ const navegarDropdownArriba = (index: number) => {
   if (lista.length === 0) return;
   const cur = cons.highlightedIndex ?? -1;
   cons.highlightedIndex = cur <= 0 ? lista.length - 1 : cur - 1;
+  scrollHighlightedIntoView(index);
 };
 
 const actualizarUnidad = (idx: number) => {
@@ -1033,7 +1053,8 @@ const ejecutarEliminacion = async () => {
                           @keydown.arrow-up.prevent="navegarDropdownArriba(index)"
                           @keydown.enter.prevent="navegarBusquedaACantidad(index)"
                           required>
-                        <ul v-if="cons.showDropdown" class="search-results-list shadow-lg custom-dropdown-width">
+                        <ul v-if="cons.showDropdown" class="search-results-list shadow-lg custom-dropdown-width"
+                          :ref="(el) => setDropdownListRef(el, index)">
                           <li v-for="(mat, matIdx) in materialesFiltradosPorFila(index)" 
                               :key="mat.descripcion" 
                               class="search-item"
