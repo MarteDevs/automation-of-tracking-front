@@ -38,6 +38,7 @@ export interface AvanceSemanal {
   porcentaje_avance: number;
   observaciones?: string;
   rutas_fotografias?: string;
+  rutas_facturas?: string;
   tipo_periodo: string; // 'SEMANA' | 'DIA'
   fecha_fin?: string;
   dias_trabajados?: number;
@@ -59,6 +60,7 @@ export interface Proyecto {
   materiales: MaterialEquipo[];
   avances: AvanceSemanal[];
   ruta_pdf?: string;
+  ruta_foto_final?: string;
 }
 
 export const useProyectosStore = defineStore('proyectos', {
@@ -228,6 +230,23 @@ export const useProyectosStore = defineStore('proyectos', {
         }
       } catch (err: any) {
         this.error = 'No se pudo eliminar el registro de seguimiento seleccionado.';
+        throw err;
+      }
+    },
+    async subirFotoFinal(proyectoId: number, rutaFoto: string) {
+      if (!proyectoId || !rutaFoto) return;
+      this.error = null;
+      try {
+        const response = await api.put<Proyecto>(`/proyectos/${proyectoId}/foto-final`, {
+          ruta_foto: rutaFoto
+        });
+        if (this.proyectoActivo && this.proyectoActivo.id === proyectoId) {
+          this.proyectoActivo.ruta_foto_final = response.data.ruta_foto_final;
+          this.proyectoActivo.ruta_pdf = undefined;
+        }
+        return response.data;
+      } catch (err: any) {
+        this.error = 'No se pudo guardar la Fotografía Final del Proyecto.';
         throw err;
       }
     },

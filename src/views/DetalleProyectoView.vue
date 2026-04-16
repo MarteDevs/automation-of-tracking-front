@@ -39,7 +39,10 @@ const labelNPeriodo = computed(() => {
 
 const labelUnidadTrabajo = computed(() => esPorHora.value ? 'Horas Trabajadas' : 'Días Trabajados');
 
+const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
 const evidenciaFiles = ref<File[]>([]);
+const facturasFiles = ref<File[]>([]);
+const fotoFinalFile = ref<File | null>(null);
 
 // --- Estados para feedback visual ---
 type ToastType = 'success' | 'danger' | 'info';
@@ -151,25 +154,61 @@ const onFileSelected = (e: Event) => {
   const target = e.target as HTMLInputElement;
   if (target.files && target.files.length > 0) {
     const arr = Array.from(target.files);
-
-    const tooBig = arr.filter(f => f.size > 5 * 1024 * 1024);
-    if (tooBig.length > 0) {
-      showToast(`Se omitieron ${tooBig.length} imágenes por superar 5MB.`, 'danger');
-    }
-
-    const validFiles = arr.filter(f => f.size <= 5 * 1024 * 1024);
-
+    const tooBig = arr.filter(f => f.size > MAX_UPLOAD_SIZE);
+    if (tooBig.length > 0) showToast(`Se omitieron ${tooBig.length} imágenes por superar 50MB.`, 'danger');
+    
+    const validFiles = arr.filter(f => f.size <= MAX_UPLOAD_SIZE);
     if (validFiles.length > 4) {
-      showToast('Máximo 4 fotos. Se tomaron las primeras 4 válidas.', 'info');
+      showToast('Máximo 4 fotos. Se tomaron las 4 primeras válidas.', 'info');
       evidenciaFiles.value = validFiles.slice(0, 4);
     } else {
       evidenciaFiles.value = validFiles;
-      if (validFiles.length > 0) {
-        showToast(`${validFiles.length} imagen(es) seleccionada(s) y lista(s) para subir.`, 'info');
-      }
+      if (validFiles.length > 0) showToast(`${validFiles.length} foto(s) seleccionada(s).`, 'info');
     }
   } else {
     evidenciaFiles.value = [];
+  }
+};
+
+const onFacturasSelected = (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    const arr = Array.from(target.files);
+    const tooBig = arr.filter(f => f.size > MAX_UPLOAD_SIZE);
+    if (tooBig.length > 0) showToast(`Se omitieron facturas por superar 50MB.`, 'danger');
+    
+    const validFiles = arr.filter(f => f.size <= MAX_UPLOAD_SIZE);
+    if (validFiles.length > 4) {
+      showToast('Máximo 4 facturas por avance.', 'info');
+      facturasFiles.value = validFiles.slice(0, 4);
+    } else {
+      facturasFiles.value = validFiles;
+      if (validFiles.length > 0) showToast(`${validFiles.length} factura(s) lista(s).`, 'info');
+    }
+  } else {
+    facturasFiles.value = [];
+  }
+};
+
+const onFotoFinalSelected = async (e: Event) => {
+  const target = e.target as HTMLInputElement;
+  if (target.files && target.files.length > 0) {
+    const file = target.files[0];
+    if (!file) return;
+    if (file.size > MAX_UPLOAD_SIZE) {
+      showToast('La foto supera los 50MB permitidos.', 'danger');
+      return;
+    }
+    showToast('Subiendo Foto Final del Proyecto...', 'info');
+    try {
+      const pId = Number(route.params.id);
+      const rutaServer = await store.uploadImagenEvidencia([file]);
+      await store.subirFotoFinal(pId, rutaServer);
+      showToast('✔ Foto Final anexada correctamante al balance global.', 'success');
+      target.value = '';
+    } catch {
+      showToast('Error al subir la Foto Final.', 'danger');
+    }
   }
 };
 
@@ -303,6 +342,13 @@ const guardarAvance = async () => {
     showToast(`✔ ${evidenciaFiles.value.length} imagen(es) guardada(s) correctamente.`, 'success');
   }
 
+  if (facturasFiles.value.length > 0) {
+    showToast('Subiendo facturas al servidor...', 'info');
+    const rutasFacturasServidor = await store.uploadImagenEvidencia(facturasFiles.value);
+    (nuevoAvance.value as any).rutas_facturas = rutasFacturasServidor;
+    showToast(`✔ ${facturasFiles.value.length} factura(s) guardada(s).`, 'success');
+  }
+
   // Limpiar datos para el servidor (quitar campos de UI y manejar nulls)
   const datosParaEnviar = {
     ...nuevoAvance.value,
@@ -322,14 +368,18 @@ const guardarAvance = async () => {
     porcentaje_avance: Math.min(100, nuevoAvance.value.porcentaje_avance + 10),
     observaciones: '',
     rutas_fotografias: '',
+    rutas_facturas: '',
     tipo_periodo: nuevoAvance.value.tipo_periodo, // Mantener el tipo elegido
     fecha_fin: '',
     dias_trabajados: nuevoAvance.value.dias_trabajados, // mantener sugerencia o se recalculará
     consumos_materiales: []
-  };
+  } as any;
   evidenciaFiles.value = [];
+  facturasFiles.value = [];
   const inputEl = document.getElementById('fotoInput') as HTMLInputElement;
   if (inputEl) inputEl.value = '';
+  const inputFacEl = document.getElementById('facturaInput') as HTMLInputElement;
+  if (inputFacEl) inputFacEl.value = '';
 };
 
 const agregarConsumoNuevo = () => {
@@ -758,6 +808,18 @@ const ejecutarEliminacion = async () => {
         <p class="text-muted"><i class="bi bi-calendar3"></i> Fecha Presupuestada: {{ store.proyectoActivo.fecha }}</p>
       </div>
       <div class="d-flex gap-3 align-items-center flex-wrap">
+        <!-- Boton de Foto Final -->
+        <div class="text-end">
+           <label for="fotoFinalUpload" class="btn fw-bold mb-0 border-2" 
+             :class="store.proyectoActivo?.ruta_foto_final ? 'btn-outline-success text-success' : 'btn-outline-warning text-warning'">
+             <i class="bi bi-camera-fill me-1"></i> {{ store.proyectoActivo?.ruta_foto_final ? 'Actualizar Foto Final' : 'Subir Foto Final' }}
+           </label>
+           <input type="file" id="fotoFinalUpload" class="d-none" accept=".png, .jpg, .jpeg, image/png, image/jpeg" @change="onFotoFinalSelected">
+           <div v-if="store.proyectoActivo?.ruta_foto_final" class="text-success small mt-1">
+             <i class="bi bi-check-circle-fill"></i> Foto en balance global
+           </div>
+        </div>
+
         <div class="d-flex gap-2" v-if="false">
           <button 
             @click="verBalanceGlobal" 
@@ -977,7 +1039,11 @@ const ejecutarEliminacion = async () => {
                 <p class="mb-1 mt-2 text-muted small">{{ av.observaciones || "Sin observaciones." }}</p>
                 <div v-if="av.rutas_fotografias" class="mt-2 text-success small">
                   <i class="bi bi-image-fill me-1"></i>
-                  {{ av.rutas_fotografias.split(',').length }} fotografía(s) adjuntada(s)
+                  {{ av.rutas_fotografias.split(',').length }} fotografía(s) técnica(s)
+                </div>
+                <div v-if="av.rutas_facturas" class="mt-2 text-info small">
+                  <i class="bi bi-receipt me-1"></i>
+                  {{ av.rutas_facturas.split(',').length }} factura(s)/comprobante(s)
                 </div>
                 <div v-if="av.consumos && av.consumos.length > 0" class="mt-2 small text-warning">
                   <i class="bi bi-box-seam me-1"></i>
@@ -1071,11 +1137,19 @@ const ejecutarEliminacion = async () => {
                     ref="inputObs" @keydown.enter.prevent="fotoInput?.focus()"></textarea>
                 </div>
                 <div class="mb-3">
-                  <label class="form-label small">Adjuntar Fotografías (Máx 4, JPG/JPEG/PNG, hasta 5MB c/u)</label>
-                  <input type="file" id="fotoInput" ref="fotoInput" class="form-control text-muted" accept=".png, .jpg, .jpeg, image/png, image/jpeg" multiple @change="onFileSelected"
+                  <label class="form-label small">Adjuntar Fotografías Técnicas (Máx 4, hasta 50MB c/u)</label>
+                  <input type="file" id="fotoInput" ref="fotoInput" class="form-control mb-1 text-muted" accept=".png, .jpg, .jpeg, image/png, image/jpeg" multiple @change="onFileSelected"
                     @keydown.enter.prevent="navegarFotoAMaterial">
-                  <div v-if="evidenciaFiles.length > 0" class="mt-1 text-info small">
-                    <i class="bi bi-paperclip"></i> {{ evidenciaFiles.length }} archivo(s) listo(s) para subir
+                  <div v-if="evidenciaFiles.length > 0" class="text-info small">
+                    <i class="bi bi-image"></i> {{ evidenciaFiles.length }} foto(s) técnica(s) lista(s).
+                  </div>
+                </div>
+
+                <div class="mb-3">
+                  <label class="form-label small">Adjuntar Facturas / Comprobantes (Máx 4, hasta 50MB c/u)</label>
+                  <input type="file" id="facturaInput" class="form-control mb-1 bg-dark text-muted border-secondary" accept=".png, .jpg, .jpeg, image/png, image/jpeg" multiple @change="onFacturasSelected">
+                  <div v-if="facturasFiles.length > 0" class="text-warning small mt-1">
+                    <i class="bi bi-receipt"></i> {{ facturasFiles.length }} factura(s) lista(s) para anexar.
                   </div>
                 </div>
 
