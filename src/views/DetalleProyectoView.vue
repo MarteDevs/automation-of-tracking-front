@@ -11,6 +11,7 @@ const nuevoAvance = ref({
   porcentaje_avance: 10,
   observaciones: '',
   rutas_fotografias: '',
+  rutas_facturas: '',
   tipo_periodo: 'SEMANA' as 'SEMANA' | 'DIA' | 'HORA',
   fecha_fin: '',
   dias_trabajados: 0,
@@ -345,7 +346,7 @@ const guardarAvance = async () => {
   if (facturasFiles.value.length > 0) {
     showToast('Subiendo facturas al servidor...', 'info');
     const rutasFacturasServidor = await store.uploadImagenEvidencia(facturasFiles.value);
-    (nuevoAvance.value as any).rutas_facturas = rutasFacturasServidor;
+    nuevoAvance.value.rutas_facturas = rutasFacturasServidor;
     showToast(`✔ ${facturasFiles.value.length} factura(s) guardada(s).`, 'success');
   }
 
