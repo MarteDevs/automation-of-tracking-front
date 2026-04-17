@@ -385,7 +385,20 @@ export const useProyectosStore = defineStore('proyectos', {
         throw err;
       }
     },
+    async agregarMaterial(proyectoId: number, data: any) {
+      try {
+        const response = await api.post<MaterialEquipo>(`/proyectos/${proyectoId}/materiales/`, data);
+        if (this.proyectoActivo && this.proyectoActivo.id === proyectoId) {
+          this.proyectoActivo.materiales.push(response.data);
+        }
+        return response.data;
+      } catch (err: any) {
+        this.error = 'Error al agregar el nuevo material o equipo.';
+        throw err;
+      }
+    },
     async eliminarMaterial(id: number) {
+
       try {
         await api.delete(`/materiales/${id}`);
         if (this.proyectoActivo) {

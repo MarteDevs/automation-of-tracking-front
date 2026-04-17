@@ -774,6 +774,21 @@ const abrirModalEditarMaterial = (item: any) => {
   showEditItemModal.value = true;
 };
 
+const abrirModalCrearMaterial = () => {
+  itemTipoParaEditar.value = 'MAT';
+  itemAEditar.value = {
+    descripcion: '',
+    categoria: 'Materiales',
+    unidad: '',
+    cantidad: 1,
+    precio_unitario: 0,
+    dias: 1,
+    total: 0
+  };
+  showEditItemModal.value = true;
+};
+
+
 const cerrarModalEditarItem = () => {
   showEditItemModal.value = false;
   itemAEditar.value = null;
@@ -786,8 +801,17 @@ const guardarCambiosItem = async () => {
     if (itemTipoParaEditar.value === 'MO') {
       await store.actualizarManoObra(itemAEditar.value.id, itemAEditar.value);
     } else {
-      await store.actualizarMaterial(itemAEditar.value.id, itemAEditar.value);
+      if (itemAEditar.value.id) {
+        // Modo Edición
+        await store.actualizarMaterial(itemAEditar.value.id, itemAEditar.value);
+      } else {
+        // Modo Creación
+        if (store.proyectoActivo?.id) {
+          await store.agregarMaterial(store.proyectoActivo.id, itemAEditar.value);
+        }
+      }
     }
+
     
     // Primero cerramos el modal y mostramos confirmación
     cerrarModalEditarItem();
@@ -945,8 +969,8 @@ const ejecutarEliminacionItem = async () => {
         <div class="custom-modal-card glass-panel shadow-2xl" style="max-width: 500px;">
           <div class="p-4 border-bottom border-white border-opacity-10 d-flex justify-content-between align-items-center">
             <h5 class="mb-0 fw-bold text-white">
-              <i class="bi bi-pencil-square text-primary me-2"></i>
-              Editar {{ itemTipoParaEditar === 'MO' ? 'Mano de Obra' : 'Material o Equipo' }}
+              <i class="bi" :class="itemAEditar?.id ? 'bi-pencil-square text-primary' : 'bi-plus-circle text-success'"></i>
+              {{ itemAEditar?.id ? 'Editar' : 'Añadir' }} {{ itemTipoParaEditar === 'MO' ? 'Mano de Obra' : 'Material o Equipo' }}
             </h5>
             <button @click="cerrarModalEditarItem" class="btn btn-link text-white p-0 text-decoration-none">
               <i class="bi bi-x-lg"></i>
@@ -1214,7 +1238,14 @@ const ejecutarEliminacionItem = async () => {
       <!-- MATERIALES -->
       <Transition name="tab-slide">
       <div v-if="activeTab === 'mats'" class="tab-section">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h5 class="mb-0"><i class="bi bi-box-seam me-2"></i>Insumos y Materiales</h5>
+          <button type="button" class="btn btn-primary d-flex align-items-center gap-2 px-3 fw-bold shadow-sm" @click="abrirModalCrearMaterial">
+            <i class="bi bi-plus-lg"></i> Añadir Material
+          </button>
+        </div>
         <div class="table-responsive glass-panel p-2">
+
           <table class="table table-hover mb-0">
             <thead>
               <tr>
