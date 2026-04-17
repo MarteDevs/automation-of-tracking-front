@@ -12,7 +12,6 @@ export interface ManoObra {
   dias?: number;
   total: number;
 }
-
 export interface MaterialEquipo {
   id?: number;
   categoria?: string;
@@ -23,6 +22,14 @@ export interface MaterialEquipo {
   dias?: number;
   total: number;
 }
+
+export interface MaterialCatalogo {
+  descripcion: string;
+  unidad: string;
+  categoria: string;
+  precio_sugerido: number;
+}
+
 
 export interface ConsumoMaterial {
   id?: number;
@@ -67,8 +74,10 @@ export const useProyectosStore = defineStore('proyectos', {
   state: () => ({
     proyectos: [] as Proyecto[],
     proyectoActivo: null as Proyecto | null,
+    catalogoMateriales: [] as MaterialCatalogo[],
     loading: false,
     error: null as string | null,
+
   }),
   actions: {
     async fetchProyectos() {
@@ -85,6 +94,15 @@ export const useProyectosStore = defineStore('proyectos', {
         this.loading = false;
       }
     },
+    async fetchCatalogoMateriales() {
+      try {
+        const response = await api.get<MaterialCatalogo[]>('/materiales/catalogo/');
+        this.catalogoMateriales = response.data;
+      } catch (err: any) {
+        console.error("Error al cargar el catálogo de materiales:", err);
+      }
+    },
+
     async fetchProyectoActivo(id: number) {
       this.loading = true;
       this.error = null;
@@ -376,9 +394,10 @@ export const useProyectosStore = defineStore('proyectos', {
       try {
         const response = await api.put<MaterialEquipo>(`/materiales/${id}`, data);
         if (this.proyectoActivo) {
-          const idx = this.proyectoActivo.materiales.findIndex(m => m.id === id);
+          const idx = this.proyectoActivo.materiales.findIndex((m: MaterialEquipo) => m.id === id);
           if (idx !== -1) this.proyectoActivo.materiales[idx] = response.data;
         }
+
         return response.data;
       } catch (err: any) {
         this.error = 'Error al actualizar el material o equipo.';
@@ -402,8 +421,9 @@ export const useProyectosStore = defineStore('proyectos', {
       try {
         await api.delete(`/materiales/${id}`);
         if (this.proyectoActivo) {
-          this.proyectoActivo.materiales = this.proyectoActivo.materiales.filter(m => m.id !== id);
+          this.proyectoActivo.materiales = this.proyectoActivo.materiales.filter((m: MaterialEquipo) => m.id !== id);
         }
+
       } catch (err: any) {
         this.error = 'No se pudo eliminar el material o equipo.';
         throw err;

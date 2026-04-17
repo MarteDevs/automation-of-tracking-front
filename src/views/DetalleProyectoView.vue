@@ -64,6 +64,11 @@ const showPdfModal = ref(false);
 const currentPdfUrl = ref('');
 const pdfModalTitle = ref('');
 
+// --- Estado para el buscador del Catálogo (Añadir Material) ---
+const showCatalogDropdown = ref(false);
+const catalogHighlightedIndex = ref(-1);
+
+
 // Refs para navegación con Enter
 const inputSemana = ref<HTMLInputElement | null>(null);
 const inputAvance = ref<HTMLInputElement | null>(null);
@@ -301,6 +306,8 @@ onMounted(async () => {
   const pId = Number(route.params.id);
   if (pId) {
     await store.fetchProyectoActivo(pId);
+    await store.fetchCatalogoMateriales();
+
     if (store.proyectoActivo) {
       editSemanasVal.value = store.proyectoActivo.semanas_estimadas || 1;
       editUnidadVal.value = store.proyectoActivo.tipo_duracion || 'SEMANAS';
@@ -319,12 +326,14 @@ const formatCurrency = (val: number) => {
 };
 
 const totalManoObra = computed(() =>
-  (store.proyectoActivo?.mano_de_obra ?? []).reduce((acc, mo) => acc + mo.total, 0)
+  (store.proyectoActivo?.mano_de_obra ?? []).reduce((acc: number, mo: any) => acc + mo.total, 0)
 );
 
+
 const totalMateriales = computed(() =>
-  (store.proyectoActivo?.materiales ?? []).reduce((acc, mat) => acc + mat.total, 0)
+  (store.proyectoActivo?.materiales ?? []).reduce((acc: number, mat: any) => acc + mat.total, 0)
 );
+
 
 const totalGeneral = computed(() => totalManoObra.value + totalMateriales.value);
 
@@ -490,16 +499,18 @@ const navegarDropdownArriba = (index: number) => {
 const actualizarUnidad = (idx: number) => {
   const cons = nuevoAvance.value.consumos_materiales[idx];
   if (!cons) return;
-  const mat = store.proyectoActivo?.materiales.find(m => m.descripcion === cons.nombre_material);
+  const mat = store.proyectoActivo?.materiales.find((m: any) => m.descripcion === cons.nombre_material);
   if (mat) cons.unidad = mat.unidad || 'Und';
 };
+
 
 const materialesDisponibles = computed(() => {
   if (!store.proyectoActivo?.materiales) return [];
   
   // 1. Agrupar PRESUPUESTO por nombre de material (Pool total)
   const presupuestoTotalMap = new Map<string, { cantidad: number, unidad: string, categoria: string }>();
-  store.proyectoActivo.materiales.forEach(mat => {
+  store.proyectoActivo.materiales.forEach((mat: any) => {
+
     const nombreNorm = (mat.descripcion || '').trim();
     if (!presupuestoTotalMap.has(nombreNorm)) {
       presupuestoTotalMap.set(nombreNorm, { 
@@ -514,9 +525,10 @@ const materialesDisponibles = computed(() => {
 
   // 2. Calcular CONSUMO histórico agrupado
   const consumosHistoricos = new Map<string, number>();
-  store.proyectoActivo.avances.forEach(av => {
+  store.proyectoActivo.avances.forEach((av: any) => {
     if (av.consumos) {
-      av.consumos.forEach(c => {
+      av.consumos.forEach((c: any) => {
+
         const nombreNorm = (c.nombre_material || '').trim();
         const cantVal = Number(c.cantidad_usada) || 0;
         consumosHistoricos.set(nombreNorm, (consumosHistoricos.get(nombreNorm) || 0) + cantVal);
@@ -552,32 +564,94 @@ const materialesFiltradosPorFila = (index: number) => {
 
   // 1. Filtrar los que ya están en OTRAS filas
   const seleccionadosEnOtros = nuevoAvance.value.consumos_materiales
-    .filter((_, idx) => idx !== index)
-    .map(c => c.nombre_material)
-    .filter(name => !!name);
+    .filter((_: any, idx: number) => idx !== index)
+    .map((c: any) => c.nombre_material)
+    .filter((name: any) => !!name);
 
-  let base = materialesDisponibles.value.filter(mat => !seleccionadosEnOtros.includes(mat.descripcion));
+  let base = materialesDisponibles.value.filter((mat: any) => !seleccionadosEnOtros.includes(mat.descripcion));
+
 
   // 2. Filtrar por la búsqueda de esta fila
   if (cons.busqueda && cons.busqueda.trim() !== '') {
     const query = cons.busqueda.toLowerCase();
-    base = base.filter(mat => mat.descripcion.toLowerCase().includes(query));
+    base = base.filter((mat: any) => mat.descripcion.toLowerCase().includes(query));
   }
+
 
   return base;
 };
 
 const obtenerCantidadRestante = (nombre: string) => {
   if (!nombre) return '';
-  const mat = materialesDisponibles.value.find(m => m.descripcion === nombre);
+  const mat = materialesDisponibles.value.find((m: any) => m.descripcion === nombre);
   return mat ? `Disp: ${mat.restante}` : '';
 };
 
+
 const obtenerRestanteNumerico = (nombre: string) => {
   if (!nombre) return 999999;
-  const mat = materialesDisponibles.value.find(m => m.descripcion === nombre);
+  const mat = materialesDisponibles.value.find((m: any) => m.descripcion === nombre);
   return mat ? mat.restante : 999999;
 };
+
+
+// --- Lógica de Catálogo Histórico ---
+const catalogoMaterialesFiltrados = computed(() => {
+  if (!itemAEditar.value || itemAEditar.value.id) return []; // Solo en modo creación
+  if (!itemAEditar.value.descripcion || itemAEditar.value.descripcion.trim() === '') {
+    return store.catalogoMateriales.slice(0, 10);
+  }
+  
+  const query = itemAEditar.value.descripcion.toLowerCase();
+  return store.catalogoMateriales
+    .filter((m: any) => m.descripcion.toLowerCase().includes(query))
+    .slice(0, 10); // Limitar a 10 resultados
+
+});
+
+const seleccionarDelCatalogo = (mat: any) => {
+  itemAEditar.value.descripcion = mat.descripcion;
+  itemAEditar.value.unidad = mat.unidad;
+  itemAEditar.value.categoria = mat.categoria;
+  
+  // Sugerimos el precio si está en 0 o vacío
+  if (!itemAEditar.value.precio_unitario) {
+    itemAEditar.value.precio_unitario = mat.precio_sugerido;
+  }
+  
+  showCatalogDropdown.value = false;
+  catalogHighlightedIndex.value = -1;
+};
+
+const navegarCatalogoAbajo = () => {
+  if (catalogoMaterialesFiltrados.value.length === 0) return;
+  showCatalogDropdown.value = true;
+  catalogHighlightedIndex.value = (catalogHighlightedIndex.value + 1) % catalogoMaterialesFiltrados.value.length;
+};
+
+const navegarCatalogoArriba = () => {
+  if (catalogoMaterialesFiltrados.value.length === 0) return;
+  showCatalogDropdown.value = true;
+  const cur = catalogHighlightedIndex.value;
+  catalogHighlightedIndex.value = cur <= 0 ? catalogoMaterialesFiltrados.value.length - 1 : cur - 1;
+};
+
+const confirmarSeleccionCatalogo = () => {
+  if (showCatalogDropdown.value && catalogHighlightedIndex.value >= 0) {
+    seleccionarDelCatalogo(catalogoMaterialesFiltrados.value[catalogHighlightedIndex.value]);
+  } else {
+    showCatalogDropdown.value = false;
+  }
+};
+
+const ocultarDropdownCatalogo = () => {
+  setTimeout(() => {
+    showCatalogDropdown.value = false;
+    catalogHighlightedIndex.value = -1;
+  }, 200);
+};
+
+
 
 const guardarSemanasEstimadas = async () => {
   const pId = Number(route.params.id);
@@ -808,8 +882,10 @@ const guardarCambiosItem = async () => {
         // Modo Creación
         if (store.proyectoActivo?.id) {
           await store.agregarMaterial(store.proyectoActivo.id, itemAEditar.value);
+          await store.fetchCatalogoMateriales(); // Refrescamos el catálogo para que el nuevo ítem aparezca pronto
         }
       }
+
     }
 
     
@@ -981,7 +1057,36 @@ const ejecutarEliminacionItem = async () => {
             <div class="row g-3">
               <div class="col-12">
                 <label class="form-label text-muted small">Descripción / Nombre</label>
-                <input type="text" v-model="itemAEditar.descripcion" class="form-control bg-dark text-white border-secondary border-opacity-50">
+                <div class="position-relative">
+                  <input type="text" v-model="itemAEditar.descripcion" 
+                    class="form-control bg-dark text-white border-secondary border-opacity-50"
+                    @focus="showCatalogDropdown = true"
+                    @blur="ocultarDropdownCatalogo"
+                    @input="showCatalogDropdown = true; catalogHighlightedIndex = -1"
+
+
+                    @keydown.arrow-down.prevent="navegarCatalogoAbajo"
+                    @keydown.arrow-up.prevent="navegarCatalogoArriba"
+                    @keydown.enter.prevent="confirmarSeleccionCatalogo"
+                    placeholder="Escriba para buscar en el catálogo...">
+                  
+                  <ul v-if="showCatalogDropdown && catalogoMaterialesFiltrados.length > 0" 
+                    class="search-results-list shadow-lg" style="width: 100%; top: 100%;">
+                    <li v-for="(cat, idx) in catalogoMaterialesFiltrados" :key="idx"
+                      class="search-item"
+                      :class="{ 'search-item-highlighted': catalogHighlightedIndex === idx }"
+                      @mousedown.prevent="seleccionarDelCatalogo(cat)">
+                      <div class="d-flex justify-content-between align-items-center">
+                        <span class="fw-bold">{{ cat.descripcion }}</span>
+                        <span class="badge bg-secondary opacity-75 small">{{ cat.unidad }}</span>
+                      </div>
+                      <div class="d-flex justify-content-between mt-1">
+                        <small class="text-muted">{{ cat.categoria }}</small>
+                        <small class="text-warning">Sug: {{ formatCurrency(cat.precio_sugerido) }}</small>
+                      </div>
+                    </li>
+                  </ul>
+                </div>
               </div>
               
               <div class="col-md-6">
@@ -1751,7 +1856,7 @@ const ejecutarEliminacionItem = async () => {
   background: rgba(15, 23, 42, 0.85);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
-  overflow: hidden;
+  overflow: visible; /* Cambiado de hidden para permitir que el dropdown sobresalga */
   animation: modal-pop 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
