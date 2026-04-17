@@ -756,6 +756,87 @@ const ejecutarEliminacion = async () => {
     showToast('Error al intentar eliminar el registro.', 'danger');
   }
 };
+
+// --- Logica de Edicion de Items (MO / MAT) ---
+const showEditItemModal = ref(false);
+const itemTipoParaEditar = ref<'MO' | 'MAT' | null>(null);
+const itemAEditar = ref<any>(null);
+
+const abrirModalEditarMO = (item: any) => {
+  itemTipoParaEditar.value = 'MO';
+  itemAEditar.value = { ...item };
+  showEditItemModal.value = true;
+};
+
+const abrirModalEditarMaterial = (item: any) => {
+  itemTipoParaEditar.value = 'MAT';
+  itemAEditar.value = { ...item };
+  showEditItemModal.value = true;
+};
+
+const cerrarModalEditarItem = () => {
+  showEditItemModal.value = false;
+  itemAEditar.value = null;
+  itemTipoParaEditar.value = null;
+};
+
+const guardarCambiosItem = async () => {
+  if (!itemAEditar.value) return;
+  try {
+    if (itemTipoParaEditar.value === 'MO') {
+      await store.actualizarManoObra(itemAEditar.value.id, itemAEditar.value);
+    } else {
+      await store.actualizarMaterial(itemAEditar.value.id, itemAEditar.value);
+    }
+    
+    // Primero cerramos el modal y mostramos confirmación
+    cerrarModalEditarItem();
+    showToast('✔ Cambios guardados correctamente.', 'success');
+    
+    // Luego refrescamos el proyecto activo para asegurar cálculos externos
+    if (store.proyectoActivo?.id) {
+      await store.fetchProyectoActivo(store.proyectoActivo.id);
+    }
+  } catch (err) {
+    console.error("Error al guardar cambios:", err);
+    showToast('Error al intentar guardar los cambios.', 'danger');
+  }
+};
+
+
+// --- Eliminación de Items ---
+const showConfirmDeleteItemModal = ref(false);
+const itemTipoParaEliminar = ref<'MO' | 'MAT' | null>(null);
+const itemIdParaEliminar = ref<number | null>(null);
+
+const abrirConfirmarEliminarItem = (tipo: 'MO' | 'MAT', id: number) => {
+  itemTipoParaEliminar.value = tipo;
+  itemIdParaEliminar.value = id;
+  showConfirmDeleteItemModal.value = true;
+};
+
+const cerrarConfirmarEliminarItem = () => {
+  showConfirmDeleteItemModal.value = false;
+  itemIdParaEliminar.value = null;
+  itemTipoParaEliminar.value = null;
+};
+
+const ejecutarEliminacionItem = async () => {
+  if (!itemIdParaEliminar.value || !itemTipoParaEliminar.value) return;
+  try {
+    if (itemTipoParaEliminar.value === 'MO') {
+      await store.eliminarManoObra(itemIdParaEliminar.value);
+    } else {
+      await store.eliminarMaterial(itemIdParaEliminar.value);
+    }
+    showToast('✔ Ítem eliminado correctamente.', 'info');
+    cerrarConfirmarEliminarItem();
+    if (store.proyectoActivo?.id) await store.fetchProyectoActivo(store.proyectoActivo.id);
+  } catch {
+    showToast('Error al intentar eliminar el ítem.', 'danger');
+  }
+};
+
 </script>
 
 <template>
@@ -858,7 +939,101 @@ const ejecutarEliminacion = async () => {
 
   <!-- ===== OVERLAY GENERANDO PDF ===== -->
   <Teleport to="body">
-    <div v-if="generandoPDF"
+    <Teleport to="body">
+    <Transition name="modal-fade">
+      <div v-if="showEditItemModal" class="custom-modal-overlay">
+        <div class="custom-modal-card glass-panel shadow-2xl" style="max-width: 500px;">
+          <div class="p-4 border-bottom border-white border-opacity-10 d-flex justify-content-between align-items-center">
+            <h5 class="mb-0 fw-bold text-white">
+              <i class="bi bi-pencil-square text-primary me-2"></i>
+              Editar {{ itemTipoParaEditar === 'MO' ? 'Mano de Obra' : 'Material o Equipo' }}
+            </h5>
+            <button @click="cerrarModalEditarItem" class="btn btn-link text-white p-0 text-decoration-none">
+              <i class="bi bi-x-lg"></i>
+            </button>
+          </div>
+          
+          <div class="p-4">
+            <div class="row g-3">
+              <div class="col-12">
+                <label class="form-label text-muted small">Descripción / Nombre</label>
+                <input type="text" v-model="itemAEditar.descripcion" class="form-control bg-dark text-white border-secondary border-opacity-50">
+              </div>
+              
+              <div class="col-md-6">
+                <label class="form-label text-muted small">Unidad</label>
+                <input type="text" v-model="itemAEditar.unidad" class="form-control bg-dark text-white border-secondary border-opacity-50">
+              </div>
+              
+              <div class="col-md-6">
+                <label class="form-label text-muted small">Cantidad {{ itemTipoParaEditar === 'MO' ? '(Trabajadores)' : '' }}</label>
+                <input type="number" step="any" v-model="itemAEditar[itemTipoParaEditar === 'MO' ? 'cantidad_trabajadores' : 'cantidad']" 
+                  class="form-control bg-dark text-white border-secondary border-opacity-50">
+              </div>
+              
+              <div class="col-md-6">
+                <label class="form-label text-muted small">Precio Unitario (S/)</label>
+                <input type="number" step="0.01" v-model="itemAEditar.precio_unitario" class="form-control bg-dark text-white border-secondary border-opacity-50">
+              </div>
+              
+              <div class="col-md-6">
+                <label class="form-label text-muted small">Días / Tiempo</label>
+                <input type="number" step="any" v-model="itemAEditar.dias" class="form-control bg-dark text-white border-secondary border-opacity-50">
+              </div>
+            </div>
+
+            <div class="mt-4 p-3 rounded bg-primary bg-opacity-10 border border-primary border-opacity-25">
+              <div class="d-flex justify-content-between align-items-center">
+                <span class="text-muted small">Nuevo Total Estimado:</span>
+                <span class="fw-bold text-primary fs-5">
+                  {{ formatCurrency((itemAEditar[itemTipoParaEditar === 'MO' ? 'cantidad_trabajadores' : 'cantidad'] || 0) * (itemAEditar.precio_unitario || 0) * (itemAEditar.dias || 1)) }}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div class="p-4 d-flex gap-2">
+            <button type="button" @click="cerrarModalEditarItem" class="btn btn-secondary flex-fill fw-bold">Cancelar</button>
+            <button type="button" @click="guardarCambiosItem" class="btn btn-primary flex-fill fw-bold">Guardar Cambios</button>
+          </div>
+
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <!-- ===== MODAL CONFIRMACIÓN ELIMINAR ITEM ===== -->
+  <Teleport to="body">
+    <Transition name="modal-fade">
+      <div v-if="showConfirmDeleteItemModal" class="custom-modal-overlay">
+        <div class="custom-modal-card glass-panel shadow-2xl">
+          <div class="modal-icon-header">
+            <div class="icon-circle bg-danger bg-opacity-20 text-danger">
+              <i class="bi bi-trash3-fill fs-3"></i>
+            </div>
+          </div>
+          
+          <div class="modal-content-body text-center px-4">
+            <h4 class="fw-bold text-white mb-2">¿Eliminar del Presupuesto?</h4>
+            <p class="text-muted small mb-0">Esta acción quitará este ítem permanentemente. Se recalcularán los totales del proyecto automáticamente.</p>
+          </div>
+
+          <div class="modal-footer-actions d-flex gap-2 p-4 mt-2">
+            <button type="button" @click="cerrarConfirmarEliminarItem" class="btn btn-secondary flex-fill fw-bold">
+              Cancelar
+            </button>
+            <button type="button" @click="ejecutarEliminacionItem" class="btn btn-danger flex-fill fw-bold shadow-lg">
+              Sí, Eliminar Ítem
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
+  <div v-if="generandoPDF"
+
       style="position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.75);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;">
       <div class="spinner-border text-danger" style="width:3.5rem;height:3.5rem;" role="status"></div>
       <span class="fw-bold text-white fs-5">Generando Reporte PDF con IA...</span>
@@ -999,6 +1174,7 @@ const ejecutarEliminacion = async () => {
                 <th>P.Unit</th>
                 <th>Días</th>
                 <th>Costo Total</th>
+                <th class="text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -1010,11 +1186,23 @@ const ejecutarEliminacion = async () => {
                 <td>{{ formatCurrency(mo.precio_unitario) }}</td>
                 <td>{{ mo.dias || '1' }}</td>
                 <td class="text-success fw-bold">{{ formatCurrency(mo.total) }}</td>
+                <td class="text-center">
+                  <div class="d-flex justify-content-center gap-2">
+                    <button type="button" @click="abrirModalEditarMO(mo)" class="btn btn-sm btn-outline-primary border-0 py-1" title="Editar item">
+                      <i class="bi bi-pencil-fill"></i>
+                    </button>
+                    <button type="button" @click="abrirConfirmarEliminarItem('MO', mo.id!)" class="btn btn-sm btn-outline-danger border-0 py-1" title="Eliminar item">
+                      <i class="bi bi-trash3-fill"></i>
+                    </button>
+                  </div>
+                </td>
+
               </tr>
             </tbody>
             <tfoot>
               <tr class="border-top border-secondary">
-                <td colspan="6" class="fw-bold text-end text-muted">Subtotal Costos Fijos:</td>
+                <td colspan="7" class="fw-bold text-end text-muted">Subtotal Costos Fijos:</td>
+
                 <td class="fw-bold text-warning fs-6">{{ formatCurrency(totalManoObra) }}</td>
               </tr>
             </tfoot>
@@ -1037,6 +1225,7 @@ const ejecutarEliminacion = async () => {
                 <th>P.Unit</th>
                 <th>Días</th>
                 <th>Costo Total</th>
+                <th class="text-center">Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -1048,11 +1237,23 @@ const ejecutarEliminacion = async () => {
                 <td>{{ formatCurrency(mat.precio_unitario || 0) }}</td>
                 <td>{{ mat.dias || '1' }}</td>
                 <td class="text-success fw-bold">{{ formatCurrency(mat.total) }}</td>
+                <td class="text-center">
+                  <div class="d-flex justify-content-center gap-2">
+                    <button type="button" @click="abrirModalEditarMaterial(mat)" class="btn btn-sm btn-outline-primary border-0 py-1" title="Editar item">
+                      <i class="bi bi-pencil-fill"></i>
+                    </button>
+                    <button type="button" @click="abrirConfirmarEliminarItem('MAT', mat.id!)" class="btn btn-sm btn-outline-danger border-0 py-1" title="Eliminar item">
+                      <i class="bi bi-trash3-fill"></i>
+                    </button>
+                  </div>
+                </td>
+
               </tr>
             </tbody>
             <tfoot>
               <tr class="border-top border-secondary">
-                <td colspan="6" class="fw-bold text-end text-muted">Subtotal Costos Variables:</td>
+                <td colspan="7" class="fw-bold text-end text-muted">Subtotal Costos Variables:</td>
+
                 <td class="fw-bold text-warning fs-6">{{ formatCurrency(totalMateriales) }}</td>
               </tr>
             </tfoot>

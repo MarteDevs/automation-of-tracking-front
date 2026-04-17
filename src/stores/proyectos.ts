@@ -345,6 +345,57 @@ export const useProyectosStore = defineStore('proyectos', {
         this.error = 'No se pudo eliminar el proyecto solicitado.';
         throw err;
       }
+    },
+    // --- NUEVAS ACCIONES PARA MANO DE OBRA ---
+    async actualizarManoObra(id: number, data: Partial<ManoObra>) {
+      try {
+        const response = await api.put<ManoObra>(`/mano-de-obra/${id}`, data);
+        if (this.proyectoActivo) {
+          const idx = this.proyectoActivo.mano_de_obra.findIndex(mo => mo.id === id);
+          if (idx !== -1) this.proyectoActivo.mano_de_obra[idx] = response.data;
+        }
+        return response.data;
+      } catch (err: any) {
+        this.error = 'Error al actualizar el ítem de mano de obra.';
+        throw err;
+      }
+    },
+    async eliminarManoObra(id: number) {
+      try {
+        await api.delete(`/mano-de-obra/${id}`);
+        if (this.proyectoActivo) {
+          this.proyectoActivo.mano_de_obra = this.proyectoActivo.mano_de_obra.filter(mo => mo.id !== id);
+        }
+      } catch (err: any) {
+        this.error = 'No se pudo eliminar el ítem de mano de obra.';
+        throw err;
+      }
+    },
+    // --- NUEVAS ACCIONES PARA MATERIALES ---
+    async actualizarMaterial(id: number, data: Partial<MaterialEquipo>) {
+      try {
+        const response = await api.put<MaterialEquipo>(`/materiales/${id}`, data);
+        if (this.proyectoActivo) {
+          const idx = this.proyectoActivo.materiales.findIndex(m => m.id === id);
+          if (idx !== -1) this.proyectoActivo.materiales[idx] = response.data;
+        }
+        return response.data;
+      } catch (err: any) {
+        this.error = 'Error al actualizar el material o equipo.';
+        throw err;
+      }
+    },
+    async eliminarMaterial(id: number) {
+      try {
+        await api.delete(`/materiales/${id}`);
+        if (this.proyectoActivo) {
+          this.proyectoActivo.materiales = this.proyectoActivo.materiales.filter(m => m.id !== id);
+        }
+      } catch (err: any) {
+        this.error = 'No se pudo eliminar el material o equipo.';
+        throw err;
+      }
     }
   }
 });
+
