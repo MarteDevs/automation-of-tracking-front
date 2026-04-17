@@ -351,13 +351,31 @@ const listaFacturasFinales = computed(() => {
   return ruta.split(',').filter(x => x && x.trim());
 });
 
-const eliminarFotoCierre = async (ruta: string) => {
-    if (!store.proyectoActivo?.id) return;
-    if (confirm('¿Está seguro de eliminar esta imagen de cierre?')) {
-        await store.eliminarFotoFinal(store.proyectoActivo.id, ruta);
-        showToast('Imagen de cierre eliminada.', 'success');
-    }
+const showDeleteFotoModal = ref(false);
+const pendingDeleteFotoRuta = ref('');
+
+const eliminarFotoCierre = (ruta: string) => {
+    pendingDeleteFotoRuta.value = ruta;
+    showDeleteFotoModal.value = true;
 };
+
+const cerrarModalEliminarFoto = () => {
+  showDeleteFotoModal.value = false;
+  pendingDeleteFotoRuta.value = '';
+};
+
+const ejecutarEliminacionFoto = async () => {
+  if (!store.proyectoActivo?.id || !pendingDeleteFotoRuta.value) return;
+  const ruta = pendingDeleteFotoRuta.value;
+  cerrarModalEliminarFoto();
+  try {
+    await store.eliminarFotoFinal(store.proyectoActivo.id, ruta);
+    showToast('✔ Imagen de cierre eliminada.', 'success');
+  } catch {
+    showToast('Error al intentar eliminar la imagen.', 'danger');
+  }
+};
+
 
 const abrirImagen = (ruta: string) => {
   window.open('http://localhost:8000/' + ruta, '_blank');
@@ -807,6 +825,36 @@ const ejecutarEliminacion = async () => {
       </div>
     </Transition>
   </Teleport>
+
+  <!-- ===== OVERLAY CONFIRMACIÓN ELIMINAR FOTO CIERRE ===== -->
+  <Teleport to="body">
+    <Transition name="modal-fade">
+      <div v-if="showDeleteFotoModal" class="custom-modal-overlay">
+        <div class="custom-modal-card glass-panel shadow-2xl">
+          <div class="modal-icon-header">
+            <div class="icon-circle bg-danger bg-opacity-20 text-danger">
+              <i class="bi bi-trash3-fill fs-3"></i>
+            </div>
+          </div>
+          
+          <div class="modal-content-body text-center px-4">
+            <h4 class="fw-bold text-white mb-2">¿Eliminar Documento?</h4>
+            <p class="text-muted small mb-0">Esta imagen se borrará del servidor. ¿Estás seguro de que deseas quitar este documento de cierre?</p>
+          </div>
+
+          <div class="modal-footer-actions d-flex gap-2 p-4 mt-2">
+            <button @click="cerrarModalEliminarFoto" class="btn btn-secondary flex-fill fw-bold">
+              Cancelar
+            </button>
+            <button @click="ejecutarEliminacionFoto" class="btn btn-danger flex-fill fw-bold shadow-lg">
+              Sí, Eliminar
+            </button>
+          </div>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
+
 
   <!-- ===== OVERLAY GENERANDO PDF ===== -->
   <Teleport to="body">
