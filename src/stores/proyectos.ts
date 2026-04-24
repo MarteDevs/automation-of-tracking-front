@@ -281,22 +281,27 @@ export const useProyectosStore = defineStore('proyectos', {
          throw err;
       }
     },
-    async actualizarConfiguracion(proyectoId: number, semanas: number, tipo_duracion: string, fecha: string) {
-      if (semanas < 1) return;
+    async actualizarConfiguracion(proyectoId: number, config: any) {
+      if (config.semanas_estimadas !== undefined && config.semanas_estimadas < 1) return;
       try {
-        const response = await api.put<Proyecto>(`/proyectos/${proyectoId}/configuracion`, {
-          semanas_estimadas: semanas,
-          tipo_duracion: tipo_duracion,
-          fecha: fecha
-        });
+        const payload: any = {};
+        if (config.semanas_estimadas !== undefined) payload.semanas_estimadas = config.semanas_estimadas;
+        if (config.tipo_duracion !== undefined) payload.tipo_duracion = config.tipo_duracion;
+        if (config.fecha !== undefined) payload.fecha = config.fecha;
+        if (config.utilidad_porcentaje !== undefined) payload.utilidad_porcentaje = config.utilidad_porcentaje;
+        if (config.otros_porcentaje !== undefined) payload.otros_porcentaje = config.otros_porcentaje;
+
+        const response = await api.put<Proyecto>(`/proyectos/${proyectoId}/configuracion`, payload);
         if (this.proyectoActivo && this.proyectoActivo.id === proyectoId) {
-          this.proyectoActivo.semanas_estimadas = response.data.semanas_estimadas;
-          this.proyectoActivo.tipo_duracion = response.data.tipo_duracion;
-          this.proyectoActivo.fecha = response.data.fecha;
+          if (response.data.semanas_estimadas !== undefined) this.proyectoActivo.semanas_estimadas = response.data.semanas_estimadas;
+          if (response.data.tipo_duracion !== undefined) this.proyectoActivo.tipo_duracion = response.data.tipo_duracion;
+          if (response.data.fecha !== undefined) this.proyectoActivo.fecha = response.data.fecha;
+          if (response.data.utilidad_porcentaje !== undefined) this.proyectoActivo.utilidad_porcentaje = response.data.utilidad_porcentaje;
+          if (response.data.otros_porcentaje !== undefined) this.proyectoActivo.otros_porcentaje = response.data.otros_porcentaje;
         }
         return response.data;
       } catch (err: any) {
-        this.error = 'No se pudo guardar la configuración de Semanas.';
+        this.error = 'No se pudo guardar la configuración.';
         throw err;
       }
     },

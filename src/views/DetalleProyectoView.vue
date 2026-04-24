@@ -339,8 +339,14 @@ const totalGeneral = computed(() => totalManoObra.value + totalMateriales.value)
 
 // Nuevos cálculos para el resumen financiero "Image 1"
 // Forzado por regla de negocio a 10% Utilidad y 5% Otros (15% total)
-const utilidadPorc = computed(() => 0.10);
-const otrosPorc = computed(() => 0.05);
+const utilidadPorc = computed(() => {
+  const val = store.proyectoActivo?.utilidad_porcentaje || 10;
+  return val > 1 ? val / 100 : val;
+});
+const otrosPorc = computed(() => {
+  const val = store.proyectoActivo?.otros_porcentaje || 5;
+  return val > 1 ? val / 100 : val;
+});
 
 const utilidadMoneda = computed(() => totalGeneral.value * utilidadPorc.value);
 const otrosMoneda = computed(() => totalGeneral.value * otrosPorc.value);
@@ -660,8 +666,39 @@ const guardarSemanasEstimadas = async () => {
     const d = new Date(editFechaVal.value + 'T12:00:00'); // T12 para evitar temas de zona horaria
     const fechaBD = d.toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric' });
     
-    await store.actualizarConfiguracion(pId, editSemanasVal.value, editUnidadVal.value, fechaBD);
+    await store.actualizarConfiguracion(pId, {
+      semanas_estimadas: editSemanasVal.value,
+      tipo_duracion: editUnidadVal.value,
+      fecha: fechaBD
+    });
     showToast(`✔ Configuración guardada correctamente.`, 'success');
+  }
+};
+
+const toggleIndirectosLoading = ref(false);
+
+const toggleIndirectos = async () => {
+  if (!store.proyectoActivo) return;
+  const pId = Number(route.params.id);
+  if (!pId) return;
+
+  toggleIndirectosLoading.value = true;
+  try {
+    const isActualmente15 = store.proyectoActivo.utilidad_porcentaje <= 10;
+    const nuevaUtilidad = isActualmente15 ? 15 : 10;
+    const nuevosOtros = 5;
+    
+    await store.actualizarConfiguracion(pId, {
+      utilidad_porcentaje: nuevaUtilidad,
+      otros_porcentaje: nuevosOtros
+    });
+    
+    showToast(`✔ Costos indirectos actualizados al ${nuevaUtilidad + nuevosOtros}%`, 'success');
+  } catch (error) {
+    console.error("Error cambiando indirectos:", error);
+    showToast('Error al cambiar el porcentaje de costos indirectos.', 'danger');
+  } finally {
+    toggleIndirectosLoading.value = false;
   }
 };
 
@@ -1405,7 +1442,13 @@ const ejecutarEliminacionItem = async () => {
                     <td class="p-3 text-end fw-bold">{{ formatCurrency(totalGeneral) }}</td>
                   </tr>
                   <tr class="border-bottom border-secondary border-opacity-25">
-                    <td class="p-3">COSTOS INDIRECTOS</td>
+                    <td class="p-3 d-flex align-items-center justify-content-between border-0">
+                      COSTOS INDIRECTOS
+                      <button @click="toggleIndirectos" :disabled="toggleIndirectosLoading" class="btn btn-sm btn-outline-info rounded-pill py-0 px-2 fw-bold" style="font-size: 0.75rem;" title="Cambiar % de Costos Indirectos">
+                        <span v-if="toggleIndirectosLoading" class="spinner-border spinner-border-sm"></span>
+                        <span v-else>{{ Math.round((utilidadPorc + otrosPorc) * 100) }}% <i class="bi bi-arrow-repeat ms-1"></i></span>
+                      </button>
+                    </td>
                     <td class="p-3 text-end">{{ formatCurrency(costosIndirectosNum) }}</td>
                   </tr>
                   <tr class="border-bottom border-primary border-opacity-50">
