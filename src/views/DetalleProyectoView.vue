@@ -63,6 +63,7 @@ const generandoPDF = ref(false);
 const showPdfModal = ref(false);
 const currentPdfUrl = ref('');
 const pdfModalTitle = ref('');
+const showConfirmAvanceModal = ref(false);
 
 // --- Estado para el buscador del Catálogo (Añadir Material) ---
 const showCatalogDropdown = ref(false);
@@ -401,6 +402,21 @@ const ultimoAvance = computed(() => {
   if (avances.length === 0) return null;
   return [...avances].sort((a, b) => b.semana - a.semana)[0];
 });
+
+// ── Confirmación antes de guardar ──
+const solicitarConfirmacionAvance = () => {
+  if (store.loading) return;
+  showConfirmAvanceModal.value = true;
+};
+
+const confirmarYGuardar = async () => {
+  showConfirmAvanceModal.value = false;
+  await guardarAvance();
+};
+
+const cancelarConfirmacion = () => {
+  showConfirmAvanceModal.value = false;
+};
 
 const guardarAvance = async () => {
   if (store.loading) return;
@@ -1628,7 +1644,7 @@ const ejecutarEliminacionItem = async () => {
               </div>
 
               <h5 class="mb-3"><i class="bi bi-plus-circle me-1"></i> Registrar Avance</h5>
-              <form @submit.prevent="guardarAvance">
+              <form @submit.prevent="solicitarConfirmacionAvance">
                 <div class="mb-3">
                   <!-- Toggle Tipo de Periodo -->
                   <label class="form-label small fw-bold">Tipo de Control</label>
@@ -1788,6 +1804,109 @@ const ejecutarEliminacionItem = async () => {
             </div>
             <!-- fin v-else (formulario normal) -->
 
+            <!-- ═══════════════════════════════════════════════════ -->
+            <!-- MODAL DE CONFIRMACIÓN DE AVANCE                    -->
+            <!-- ═══════════════════════════════════════════════════ -->
+            <Teleport to="body">
+              <Transition name="confirm-modal">
+                <div v-if="showConfirmAvanceModal" class="confirm-overlay" @click.self="cancelarConfirmacion">
+                  <div class="confirm-card">
+                    <!-- Encabezado -->
+                    <div class="confirm-header">
+                      <div class="confirm-header-icon">
+                        <i class="bi bi-file-earmark-check"></i>
+                      </div>
+                      <div>
+                        <div class="confirm-title">Confirmar Registro de Avance</div>
+                        <div class="confirm-subtitle">Revisa el resumen antes de guardar</div>
+                      </div>
+                    </div>
+
+                    <!-- Cuerpo con resumen -->
+                    <div class="confirm-body">
+
+                      <!-- Fila 1: Periodo y Avance -->
+                      <div class="confirm-row">
+                        <div class="confirm-item">
+                          <span class="confirm-label"><i class="bi bi-calendar3 me-1"></i>{{ labelNPeriodo }}</span>
+                          <span class="confirm-value text-warning fw-bold">{{ nuevoAvance.semana }}</span>
+                        </div>
+                        <div class="confirm-item">
+                          <span class="confirm-label"><i class="bi bi-bar-chart-fill me-1"></i>Avance Físico</span>
+                          <span class="confirm-value text-success fw-bold">{{ nuevoAvance.porcentaje_avance }}%</span>
+                        </div>
+                        <div class="confirm-item">
+                          <span class="confirm-label"><i class="bi bi-clock me-1"></i>{{ labelUnidadTrabajo }}</span>
+                          <span class="confirm-value">{{ nuevoAvance.dias_trabajados }}</span>
+                        </div>
+                        <div class="confirm-item">
+                          <span class="confirm-label"><i class="bi bi-calendar-check me-1"></i>Fecha</span>
+                          <span class="confirm-value">{{ nuevoAvance.fecha_fin || '---' }}</span>
+                        </div>
+                      </div>
+
+                      <!-- Observaciones -->
+                      <div class="confirm-section">
+                        <span class="confirm-section-label"><i class="bi bi-chat-left-text me-1"></i>Observaciones</span>
+                        <div class="confirm-obs">
+                          {{ nuevoAvance.observaciones || '(Sin observaciones)' }}
+                        </div>
+                      </div>
+
+                      <!-- Materiales -->
+                      <div class="confirm-section">
+                        <span class="confirm-section-label"><i class="bi bi-box-seam me-1"></i>Materiales ({{ nuevoAvance.consumos_materiales.filter(c => c.nombre_material).length }})</span>
+                        <div v-if="nuevoAvance.consumos_materiales.filter(c => c.nombre_material).length === 0" class="confirm-empty">
+                          Sin materiales registrados
+                        </div>
+                        <div v-else class="confirm-mat-list">
+                          <div v-for="(cons, i) in nuevoAvance.consumos_materiales.filter(c => c.nombre_material)" :key="i" class="confirm-mat-row">
+                            <span class="confirm-mat-name">{{ cons.nombre_material }}</span>
+                            <span class="confirm-mat-qty">{{ cons.cantidad_usada || 0 }} <small class="text-muted">{{ cons.unidad }}</small></span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <!-- Evidencias -->
+                      <div class="confirm-row">
+                        <div class="confirm-item">
+                          <span class="confirm-label"><i class="bi bi-images me-1"></i>Fotografías</span>
+                          <span class="confirm-value" :class="evidenciaFiles.length > 0 ? 'text-success' : 'text-muted'">
+                            {{ evidenciaFiles.length > 0 ? evidenciaFiles.length + ' archivo(s)' : 'Sin imágenes' }}
+                          </span>
+                        </div>
+                        <div class="confirm-item">
+                          <span class="confirm-label"><i class="bi bi-receipt me-1"></i>Facturas</span>
+                          <span class="confirm-value" :class="facturasFiles.length > 0 ? 'text-success' : 'text-muted'">
+                            {{ facturasFiles.length > 0 ? facturasFiles.length + ' archivo(s)' : 'Sin facturas' }}
+                          </span>
+                        </div>
+                      </div>
+
+                      <!-- Alerta si avance >= 100 -->
+                      <div v-if="nuevoAvance.porcentaje_avance >= 100" class="confirm-alert">
+                        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                        <strong>¡Atención!</strong> Estás registrando el <strong>100%</strong> de avance. Esto marcará el proyecto como completado.
+                      </div>
+
+                    </div>
+
+                    <!-- Pie con botones -->
+                    <div class="confirm-footer">
+                      <button type="button" class="btn-cancel" @click="cancelarConfirmacion">
+                        <i class="bi bi-x-circle me-1"></i> Cancelar
+                      </button>
+                      <button type="button" class="btn-confirm" @click="confirmarYGuardar" :disabled="store.loading">
+                        <span v-if="store.loading" class="spinner-border spinner-border-sm me-2"></span>
+                        <i v-else class="bi bi-floppy me-1"></i>
+                        {{ store.loading ? 'Guardando...' : 'Sí, Firmar y Guardar' }}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </Transition>
+            </Teleport>
+
           </div>
         </div>
       </div>
@@ -1892,6 +2011,238 @@ const ejecutarEliminacionItem = async () => {
 
 /* ── Tab Slide Transition ── */
 .tab-slide-leave-to {
+  opacity: 0;
+}
+
+/* ── MODAL CONFIRMACIÓN AVANCE ── */
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.confirm-card {
+  background: #1a2035;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 560px;
+  box-shadow: 0 25px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(99, 179, 237, 0.12);
+  overflow: hidden;
+  animation: confirmSlideUp 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes confirmSlideUp {
+  from { opacity: 0; transform: translateY(24px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.confirm-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 20px 24px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.18), rgba(139, 92, 246, 0.12));
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.confirm-header-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.confirm-title {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #e2e8f0;
+}
+
+.confirm-subtitle {
+  font-size: 0.8rem;
+  color: rgba(148, 163, 184, 0.8);
+  margin-top: 2px;
+}
+
+.confirm-body {
+  padding: 20px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-height: 55vh;
+  overflow-y: auto;
+}
+
+.confirm-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.confirm-item {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.confirm-label {
+  font-size: 0.72rem;
+  color: rgba(148, 163, 184, 0.75);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.confirm-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.confirm-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.confirm-section-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: rgba(148, 163, 184, 0.9);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.confirm-obs {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.88rem;
+  color: #cbd5e1;
+  line-height: 1.5;
+  max-height: 80px;
+  overflow-y: auto;
+  white-space: pre-wrap;
+}
+
+.confirm-empty {
+  font-size: 0.82rem;
+  color: rgba(148, 163, 184, 0.5);
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.confirm-mat-list {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.confirm-mat-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.confirm-mat-name {
+  color: #cbd5e1;
+  flex: 1;
+}
+
+.confirm-mat-qty {
+  font-weight: 700;
+  color: #fbbf24;
+  margin-left: 12px;
+  white-space: nowrap;
+}
+
+.confirm-alert {
+  background: rgba(220, 38, 38, 0.1);
+  border: 1px solid rgba(220, 38, 38, 0.35);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 0.85rem;
+  color: #fca5a5;
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+}
+
+.confirm-footer {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.btn-cancel {
+  flex: 1;
+  padding: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: transparent;
+  color: #94a3b8;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.btn-cancel:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: #e2e8f0;
+}
+
+.btn-confirm {
+  flex: 2;
+  padding: 10px;
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  border: none;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(34, 197, 94, 0.3);
+}
+.btn-confirm:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(34, 197, 94, 0.45);
+}
+.btn-confirm:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Transition del modal confirm */
+.confirm-modal-enter-active, .confirm-modal-leave-active {
+  transition: opacity 0.25s ease;
+}
+.confirm-modal-enter-from, .confirm-modal-leave-to {
   opacity: 0;
 }
 
