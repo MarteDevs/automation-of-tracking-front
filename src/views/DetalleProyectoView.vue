@@ -1706,11 +1706,13 @@ const ejecutarEliminacionItem = async () => {
                       <i class="bi bi-plus fw-bold"></i>
                     </button>
                   </label>
-                  <div v-for="(cons, index) in nuevoAvance.consumos_materiales" :key="index" class="mb-3 p-2 rounded" style="background: rgba(0,0,0,0.15); border: 1px dashed rgba(255,255,255,0.2);">
+                  <div v-for="(cons, index) in nuevoAvance.consumos_materiales" :key="index" class="mb-3 p-2 rounded transition-all" 
+                    :style="(!cons.nombre_material || !cons.cantidad_usada || cons.cantidad_usada <= 0) ? 'background: rgba(220,53,69,0.05); border: 1px dashed rgba(220,53,69,0.5); box-shadow: 0 0 10px rgba(220,53,69,0.15);' : 'background: rgba(0,0,0,0.15); border: 1px dashed rgba(255,255,255,0.2);'">
                     <div class="d-flex justify-content-between align-items-center mb-2 gap-2">
                       <div class="search-dropdown-container w-100">
                         <input type="text" 
-                          class="form-control form-control-sm bg-dark text-white border-secondary w-100"
+                          class="form-control form-control-sm bg-dark text-white w-100"
+                          :class="!cons.nombre_material ? 'border-danger' : 'border-secondary'"
                           placeholder="Buscar insumo o material..."
                           v-model="cons.busqueda"
                           :ref="(el) => setMaterialSearchRef(el, index)"
@@ -1741,27 +1743,36 @@ const ejecutarEliminacionItem = async () => {
                       </button>
                     </div>
                     
-                    <div class="d-flex gap-2">
-                      <div class="input-group input-group-sm flex-fill">
-                        <span class="input-group-text bg-dark text-muted border-secondary px-2">Cant Usd.</span>
-                        <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary text-end px-2"
-                          v-model="cons.cantidad_usada"
-                          :max="obtenerRestanteNumerico(cons.nombre_material)"
-                          :ref="(el) => setMaterialCantidadRef(el, index)"
-                          @keydown.enter.prevent="navegarCantidadANuevoMaterial"
-                          placeholder="0.00" required>
+                    <div class="row g-2 mt-1">
+                      <div class="col-6">
+                        <div class="input-group input-group-sm h-100">
+                          <span class="input-group-text bg-dark text-muted border-secondary px-2" style="font-size: 0.75rem;">Cant Usada</span>
+                          <input type="number" step="0.01" class="form-control bg-dark text-white text-end px-2"
+                            :class="(!cons.cantidad_usada || cons.cantidad_usada <= 0) ? 'border-danger' : 'border-secondary'"
+                            v-model="cons.cantidad_usada"
+                            :max="obtenerRestanteNumerico(cons.nombre_material)"
+                            :ref="(el) => setMaterialCantidadRef(el, index)"
+                            @keydown.enter.prevent="navegarCantidadANuevoMaterial"
+                            placeholder="0.00" required>
+                        </div>
                       </div>
-                      <div class="input-group input-group-sm flex-fill">
-                        <span class="input-group-text bg-dark text-muted border-secondary px-2">Und</span>
-                        <input type="text" class="form-control bg-dark text-white border-secondary text-center px-1" v-model="cons.unidad" readonly placeholder="-">
+                      <div class="col-6">
+                        <div class="input-group input-group-sm h-100">
+                          <span class="input-group-text bg-dark text-muted border-secondary px-2" style="font-size: 0.75rem;">Und</span>
+                          <input type="text" class="form-control bg-dark text-white border-secondary text-center px-1" v-model="cons.unidad" readonly placeholder="-">
+                        </div>
                       </div>
-                      <div class="input-group input-group-sm flex-fill" title="Stock actual">
-                        <span class="input-group-text bg-dark text-muted border-secondary px-2">Stock</span>
-                        <input type="text" class="form-control bg-dark text-info border-secondary text-center px-1 fw-bold" :value="obtenerRestanteNumerico(cons.nombre_material) === 999999 ? '-' : obtenerRestanteNumerico(cons.nombre_material)" readonly>
+                      <div class="col-6">
+                        <div class="input-group input-group-sm h-100" title="Stock actual">
+                          <span class="input-group-text bg-dark text-muted border-secondary px-2" style="font-size: 0.75rem;">Stock</span>
+                          <input type="text" class="form-control bg-dark text-info border-secondary text-center px-1 fw-bold" :value="obtenerRestanteNumerico(cons.nombre_material) === 999999 ? '-' : obtenerRestanteNumerico(cons.nombre_material)" readonly>
+                        </div>
                       </div>
-                      <div class="input-group input-group-sm flex-fill" title="Saldo estimado restante">
-                        <span class="input-group-text bg-dark text-muted border-secondary px-2">Saldo</span>
-                        <input type="text" class="form-control bg-dark text-warning border-secondary text-center px-1 fw-bold" :value="obtenerRestanteNumerico(cons.nombre_material) === 999999 ? '-' : (obtenerRestanteNumerico(cons.nombre_material) - (cons.cantidad_usada || 0)).toFixed(2)" readonly>
+                      <div class="col-6">
+                        <div class="input-group input-group-sm h-100" title="Saldo estimado restante">
+                          <span class="input-group-text bg-dark text-muted border-secondary px-2" style="font-size: 0.75rem;">Saldo Fisco</span>
+                          <input type="text" class="form-control bg-dark text-warning border-secondary text-center px-1 fw-bold" :value="obtenerRestanteNumerico(cons.nombre_material) === 999999 ? '-' : (obtenerRestanteNumerico(cons.nombre_material) - (cons.cantidad_usada || 0)).toFixed(2)" readonly>
+                        </div>
                       </div>
                     </div>
                   </div>
