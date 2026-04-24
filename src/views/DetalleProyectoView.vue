@@ -590,7 +590,7 @@ const materialesFiltradosPorFila = (index: number) => {
 const obtenerCantidadRestante = (nombre: string) => {
   if (!nombre) return '';
   const mat = materialesDisponibles.value.find((m: any) => m.descripcion === nombre);
-  return mat ? `Disp: ${mat.restante}` : '';
+  return mat ? `Stock: ${mat.restante}` : '';
 };
 
 
@@ -1729,7 +1729,7 @@ const ejecutarEliminacionItem = async () => {
                               :class="{ 'search-item-highlighted': cons.highlightedIndex === matIdx }"
                               @mousedown.prevent="seleccionarMaterial(index, mat)">
                             <span class="fw-bold">{{ mat.descripcion }}</span>
-                            <span class="stock-tag ms-2 fw-normal text-warning">({{ mat.unidad }} - Disp: {{ mat.restante }})</span>
+                            <span class="stock-tag ms-2 fw-normal text-warning">({{ mat.unidad }} - Stock: {{ mat.restante }})</span>
                           </li>
                           <li v-if="materialesFiltradosPorFila(index).length === 0" class="search-item text-muted text-center py-3">
                             <i class="bi bi-exclamation-circle me-1"></i> Sin resultados o stock agotado
@@ -1743,7 +1743,7 @@ const ejecutarEliminacionItem = async () => {
                     
                     <div class="d-flex gap-2">
                       <div class="input-group input-group-sm flex-fill">
-                        <span class="input-group-text bg-dark text-muted border-secondary px-2">Cant</span>
+                        <span class="input-group-text bg-dark text-muted border-secondary px-2">Cant Usd.</span>
                         <input type="number" step="0.01" class="form-control bg-dark text-white border-secondary text-end px-2"
                           v-model="cons.cantidad_usada"
                           :max="obtenerRestanteNumerico(cons.nombre_material)"
@@ -1755,9 +1755,13 @@ const ejecutarEliminacionItem = async () => {
                         <span class="input-group-text bg-dark text-muted border-secondary px-2">Und</span>
                         <input type="text" class="form-control bg-dark text-white border-secondary text-center px-1" v-model="cons.unidad" readonly placeholder="-">
                       </div>
-                      <div class="input-group input-group-sm flex-fill">
-                        <span class="input-group-text bg-dark text-muted border-secondary px-2">Disp</span>
+                      <div class="input-group input-group-sm flex-fill" title="Stock actual">
+                        <span class="input-group-text bg-dark text-muted border-secondary px-2">Stock</span>
                         <input type="text" class="form-control bg-dark text-info border-secondary text-center px-1 fw-bold" :value="obtenerRestanteNumerico(cons.nombre_material) === 999999 ? '-' : obtenerRestanteNumerico(cons.nombre_material)" readonly>
+                      </div>
+                      <div class="input-group input-group-sm flex-fill" title="Saldo estimado restante">
+                        <span class="input-group-text bg-dark text-muted border-secondary px-2">Saldo</span>
+                        <input type="text" class="form-control bg-dark text-warning border-secondary text-center px-1 fw-bold" :value="obtenerRestanteNumerico(cons.nombre_material) === 999999 ? '-' : (obtenerRestanteNumerico(cons.nombre_material) - (cons.cantidad_usada || 0)).toFixed(2)" readonly>
                       </div>
                     </div>
                   </div>
