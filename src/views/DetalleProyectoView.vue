@@ -335,6 +335,16 @@ const totalMateriales = computed(() =>
   (store.proyectoActivo?.materiales ?? []).reduce((acc: number, mat: any) => acc + mat.total, 0)
 );
 
+const totalMaterialesPorCategoria = computed(() => {
+  const grupos: Record<string, number> = {};
+  if (!store.proyectoActivo?.materiales) return grupos;
+  store.proyectoActivo.materiales.forEach((mat: any) => {
+    const cat = mat.categoria || 'Materiales';
+    const catNorm = cat.trim();
+    grupos[catNorm] = (grupos[catNorm] || 0) + (mat.total || 0);
+  });
+  return grupos;
+});
 
 const totalGeneral = computed(() => totalManoObra.value + totalMateriales.value);
 
@@ -1448,9 +1458,26 @@ const ejecutarEliminacionItem = async () => {
             </tfoot>
           </table>
 
-          <!-- TOTAL GENERAL DETALLADO (Estilo Imagen 1) -->
-          <div class="d-flex justify-content-end mt-4">
-            <div class="glass-panel p-0 border-primary overflow-hidden" style="min-width: 400px; border-width: 1px;">
+          <!-- TOTALES AL FINAL (Subtotales por categoría + Resumen General) -->
+          <div class="d-flex justify-content-between align-items-start mt-4 flex-wrap gap-4">
+            <!-- TARJETA DE SUB-TOTALES POR CATEGORÍA DE COSTOS VARIABLES -->
+            <div class="glass-panel p-4 flex-grow-1" style="max-width: 550px; min-width: 320px; border: 1px solid rgba(255,255,255,0.15);">
+              <h5 class="fw-bold mb-3 text-info"><i class="bi bi-pie-chart-fill me-2"></i>Subtotales por Categoría (Costos Variables)</h5>
+              <div class="d-flex flex-column gap-2">
+                <div v-for="(totalCat, catName) in totalMaterialesPorCategoria" :key="catName" class="category-row">
+                  <span class="custom-category-badge">{{ catName }}</span>
+                  <span class="category-total">{{ formatCurrency(totalCat) }}</span>
+                </div>
+                <!-- Fila de Total de variables acumulado en esta tarjeta -->
+                <div class="d-flex justify-content-between align-items-center mt-3 pt-3 border-top border-secondary border-opacity-20">
+                  <span class="text-muted small fw-bold text-uppercase" style="letter-spacing: 0.04em;">Total Costos Variables:</span>
+                  <span class="fw-bold text-warning fs-5">{{ formatCurrency(totalMateriales) }}</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- TOTAL GENERAL DETALLADO (Estilo Imagen 1) -->
+            <div class="glass-panel p-0 border-primary overflow-hidden shadow-lg" style="min-width: 400px; border-width: 1px;">
               <table class="table table-sm table-borderless mb-0 text-white">
                 <tbody>
                   <tr class="border-bottom border-secondary border-opacity-25">
@@ -2001,6 +2028,40 @@ const ejecutarEliminacionItem = async () => {
 .tab-badge-info {
   background: rgba(16, 185, 129, 0.25) !important;
   color: #6ee7b7 !important;
+}
+
+/* ── Custom Categories List in Variables Card ── */
+.category-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03) !important;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: all 0.2s ease-in-out;
+}
+.category-row:hover {
+  background: rgba(255, 255, 255, 0.06) !important;
+  border-color: rgba(255, 255, 255, 0.12);
+  transform: translateY(-1px);
+}
+.custom-category-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  border-radius: 6px;
+  background: rgba(59, 130, 246, 0.12) !important;
+  border: 1px solid rgba(59, 130, 246, 0.25);
+  color: #60a5fa !important;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+.category-total {
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: #34d399;
 }
 
 /* ── Tab Content Wrapper ── */
